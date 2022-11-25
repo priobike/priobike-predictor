@@ -1,0 +1,170 @@
+<!-- Basic HTML file-->
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cycle Analyzer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+
+    <style>
+      .state-0 {
+        background: black;
+      }
+      
+      .state-1 {
+        background: rgb(195, 0, 0);
+      }
+
+      .state-2 {
+        background: #ffc107;
+      }
+
+      .state-3 {
+        background: #28a745;
+      }
+
+      .state-4 {
+        background: #ff8400;
+      }
+
+      .state-5 {
+        background: #ffff00;
+      }
+
+      .state-6 {
+        background: #2bff00;
+      }
+
+      .state-9 {
+        background: #dd00ff;
+      }
+    </style>
+  </head>
+  <body>
+  <section class="section">
+    <div class="container" id="links"></div>
+    <hr>
+    <div class="container" id="cycles" style="overflow-x: scroll;">
+      <label class="label">3. Click on a Connection</label>
+    </div>
+  </section>
+  </body>
+
+  <script>
+    // On document load, insert the url without "analyzer.html" into the input field.
+    document.addEventListener('DOMContentLoaded', function() {
+      loadConnections();
+    });
+
+    let connections = [];
+
+    // Generate a random color based on a string input.
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+        let value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
+
+    function loadConnections() {
+      // Get the endpoint url from the input field with id "url"
+      const url = window.location.href
+        .replace('analyzer.html', '')
+        .replace('#', '');
+      // Using the fetch api, get the connections via url/cycles/ids
+      fetch(url + 'index.json')
+        .then(response => response.json())
+        .then(data => {
+          connections = data;
+          // The data is a list of strings representing the ids of the connections.
+          // First, clear items from the container.
+          const links = document.getElementById('links');
+          links.innerHTML = '';
+          // Create a label for the number of connections.
+          const label = document.createElement('label');
+          label.className = 'label';
+          label.innerHTML = 'Loaded ' + data.length + ' configurations.';
+          links.appendChild(label);
+          // Create a search field to filter the connections.
+          const search = document.createElement('input');
+          search.className = 'input';
+          search.type = 'text';
+          search.placeholder = 'Search';
+          search.onkeyup = function() {
+            const filter = search.value.toUpperCase();
+            const list = document.getElementById('links');
+            const items = list.getElementsByTagName('button');
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              const text = item.textContent || item.innerText;
+              if (text.toUpperCase().indexOf(filter) > -1) {
+                item.style.display = '';
+              } else {
+                item.style.display = 'none';
+              }
+            }
+          };
+          links.appendChild(search);
+          // Create a list of links to the connections.
+          const list = document.createElement('div');
+          list.className = 'list';
+          for (let i = 0; i < data.length; i++) {
+            const button = document.createElement('button');
+            button.className = 'button is-secondary mt-2 mr-2';
+            button.innerHTML = data[i];
+            let hash = data[i].split('-')[0].replace('.json', '');
+            button.style.borderColor = stringToColor(hash);
+            button.style.borderWidth = '2px';
+            button.onclick = function() {
+              loadCycles(data[i]);
+            };
+            list.appendChild(button);
+          }
+          links.appendChild(list);
+        });
+    }
+
+    function loadCycles(url) {
+      console.log('Loading cycles from ' + url);
+      // Load the cycles from the url
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          // The data is a list of cycles.
+          // First, clear items from the container.
+          const cycles = document.getElementById('cycles');
+          cycles.innerHTML = '';
+
+          // For each cycle, create a list of divs for each state in the segment.
+          data.forEach(cycle => {
+            let i = 0;
+            cycle.forEach(state => {
+              i++;
+              const div = document.createElement('div');
+              // Make a pixel square for each state.
+              div.style.width = '6px';
+              div.style.height = '16px';
+              div.style.marginRight = '1px';
+              div.style.borderRadius = '3px';
+              div.className = 'state-' + state;
+              div.style.display = 'inline-block';
+              div.dataset.state = '' + i;
+              cycles.appendChild(div);
+            });
+            // Add a hr between each cycle.
+            const spacer = document.createElement('div');
+            spacer.className = 'mt-1';
+            cycles.appendChild(spacer);
+          });
+        });
+    }
+  </script>
+</html>

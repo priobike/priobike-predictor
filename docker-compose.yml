@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  app:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    env_file: .env
+    volumes:
+      # Mount a volume under the shared nginx dir to serve static files
+      - ./static/:/usr/share/nginx/html/
+    restart: unless-stopped
+  nginx:
+    image: nginx:latest
+    volumes:
+      # Mount the same volume to serve static files
+      - ./static/:/usr/share/nginx/html/
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+  
