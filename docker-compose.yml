@@ -13,10 +13,20 @@ services:
     image: nginx:latest
     volumes:
       # Mount the same volume to serve static files
-      - ./static/:/usr/share/nginx/html/
+      - ./static/:/usr/share/nginx/html/:ro
     ports:
       - "80:80"
     depends_on:
       - app
+    restart: unless-stopped
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    hostname: mosquitto
+    ports:
+      - "1883:1883" # TCP
+      - "8883:8883" # Websockets
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
     restart: unless-stopped
   

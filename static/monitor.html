@@ -1,0 +1,230 @@
+<!-- Basic HTML file-->
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SG Monitor</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      html {
+        background-color: #1a1a1a;
+        color: #f5f5f5;
+      }
+
+      hr {
+        border: 1px solid #000;
+      }
+
+      .comparison {
+        font-size: 8px;
+        width: 5rem;
+      }
+
+      .new-wins {
+        border: 1px solid rgb(0, 157, 255);
+      }
+
+      .old-wins {
+        border: 1px solid rgb(255, 47, 248);
+      }
+
+      .both-win {
+        border: 1px solid rgb(0, 0, 0);
+      }
+
+      .both-lose {
+        border: 1px solid rgb(255, 255, 0);
+      }
+
+      #chart {
+        height: 20rem;
+      }
+
+      .state-circle {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+        margin-right: 4px;
+        text-align: center;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .state-0 {
+        background: black;
+      }
+      
+      .state-1 {
+        background: rgb(195, 0, 0);
+      }
+
+      .state-2 {
+        background: #ffc107;
+      }
+
+      .state-3 {
+        background: #28a745;
+      }
+
+      .state-4 {
+        background: #ff8400;
+      }
+
+      .state-5 {
+        background: #ffff00;
+      }
+
+      .state-6 {
+        background: #2bff00;
+      }
+
+      .state-9 {
+        background: #dd00ff;
+      }
+
+      .state-unknown {
+        background: grey;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="container">
+      <div class="columns is-multiline pt-5">
+        <div class="column is-4 pt-5">
+          <h1 class="title has-text-white pt-3">SG Monitor</h1>
+          <h1 class="subtitle has-text-white pt-3" id="number"></h1> 
+        </div>
+        <div class="column is-8">
+          <canvas id="chart"></canvas>
+        </div>     
+      </div>
+    </section>
+    <div class="container pt-6" id="all"></div>  
+  </body>
+
+  <script>
+    var chart;
+
+    // Every second, get the data from the API.
+    setInterval(() => {
+        fetch('metrics.json')
+            .then(response => response.json())
+            .then(metrics => {
+                // Update the number
+                document.getElementById('number').innerHTML = 
+                  `${metrics.entries.length} <small>signal groups synced</small> <br>` +
+                  `${metrics.verifiable} <small>send data and have a prediction</small> <br>` +
+                  `${metrics.oldVerifiable} <small>send data and have a prediction (old service)</small> <br>` +
+                  `${Math.round(10000 * metrics.correct / metrics.verifiable) / 100}% <small>accuracy</small> <br>` +
+                  `${Math.round(10000 * metrics.oldCorrect / metrics.oldVerifiable) / 100}% <small>accuracy (old service)</small> <br>` +
+                  `${Math.round(100 * metrics.meanDev) / 100}s <small>mean deviation</small> <br>` +
+                  `${Math.round(100 * metrics.meanMsgDelay) / 100}s <small>mean message delay</small> <br>`;
+
+                // Create the chart
+                var ctx = document.getElementById('chart').getContext('2d');
+                // If the old chart exists, set the metrics.
+                if (!chart) {
+                  chart = new Chart(ctx, {
+                      type: 'bar',
+                      data: {
+                          datasets: [{
+                              label: 'Deviation of predictions in seconds',
+                              backgroundColor: Object.keys(metrics.deviations).map(key => {
+                                if (key > 0) {
+                                  return 'rgb(255, 255, 0)';
+                                } else {
+                                  return 'rgb(255, 255, 255)';
+                                }
+                              }),
+                              borderColor: 'rgb(255, 255, 255)',
+                              data: metrics.deviations
+                          }]
+                      },
+                      options: {
+                          scales: {
+                              y: {
+                                  beginAtZero: true,
+                              },
+                              x: {
+                                  beginAtZero: true,
+                              }
+                          },
+                          animation: {
+                            duration: 0
+                          },
+                          responsive: true,
+                          maintainAspectRatio: false
+                      }
+                  });
+                } else {
+                  chart.data.datasets[0].data = metrics.deviations;
+                  chart.update();
+                }
+
+                for (const state of metrics.entries) {
+                    let container = document.getElementById(state.name);
+                    let actualEle = document.getElementById(state.name + '-actual');
+                    let predictedEle = document.getElementById(state.name + '-predicted');
+                    let oldEle = document.getElementById(state.name + '-old');
+                    if (!actualEle && !predictedEle && !oldEle) {
+                        container = document.createElement('a');
+                        container.id = state.name;
+                        container.style.display = 'inline-block';
+                        container.style.color = '#fff';
+                        container.style.margin = '8px';
+                        container.style.padding = '8px';
+                        container.style.borderRadius = '8px';
+                        container.target = '_blank';
+
+                        actualEle = document.createElement('div');
+                        actualEle.id = state.name + '-actual';
+                        actualEle.innerHTML = 'A';
+                        container.appendChild(actualEle);
+
+                        predictedEle = document.createElement('div');
+                        predictedEle.id = state.name + '-predicted';
+                        predictedEle.innerHTML = 'P';
+                        container.appendChild(predictedEle);
+
+                        oldEle = document.createElement('div');
+                        oldEle.id = state.name + '-old';
+                        oldEle.innerHTML = 'O';
+                        container.appendChild(oldEle);
+
+                        nameEle = document.createElement('div');
+                        nameEle.innerText = state.name;
+                        container.appendChild(nameEle);
+
+                        document.getElementById('all').appendChild(container);
+                    }
+                    if (state.program) {
+                      container.href = '/analyzer.html#' + state.name + '-P' + state.program + '.json';
+                      nameEle.innerText = state.name + '-P' + state.program;
+                    } else {
+                      container.href = '/analyzer.html#' + state.name + '.json';
+                      nameEle.innerText = state.name;
+                    }
+                    if (state.actual === state.predicted && state.actual !== state.old) {
+                        container.className = 'comparison new-wins';
+                    } else if (state.actual !== state.predicted && state.actual === state.old) {
+                        container.className = 'comparison old-wins';
+                    } else if (state.actual === state.predicted && state.actual === state.old) {
+                        container.className = 'comparison both-win';
+                    } else {
+                        container.className = 'comparison both-lose';
+                    }
+                    if (state.quality) {
+                      predictedEle.style.opacity = state.quality / 100;
+                    }
+                    predictedEle.className = 'state-circle state-' + state.predicted;
+                    actualEle.className = 'state-circle state-' + state.actual;
+                    oldEle.className = 'state-circle state-' + state.old;
+                }
+            });
+    }, 1000);
+  </script>
+</html>

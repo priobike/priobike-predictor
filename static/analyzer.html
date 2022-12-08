@@ -7,8 +7,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cycle Analyzer</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
 
     <style>
+      :root {
+        --map-tiles-filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0) brightness(0.7);
+      }
+
+      .map-tiles {
+        filter:var(--map-tiles-filter, none);
+      }
+
+      html > * {
+        background-color: #1a1a1a;
+        color: #f5f5f5;
+      }
+
+      #links {
+        height: 100vh;
+        overflow-y: scroll;
+      }
+
+      #cycles, #prediction {
+        overflow-x: scroll;
+        white-space: nowrap;
+      }
+
       .state-0 {
         background: black;
       }
@@ -40,23 +65,57 @@
       .state-9 {
         background: #dd00ff;
       }
+
+      .state-unknown {
+        background: grey;
+      }
+
+      #map { 
+        height: 50vh; 
+        width: 100%;
+        border-radius: 5px;
+      }
     </style>
   </head>
   <body>
-  <section class="section">
-    <div class="container" id="links"></div>
-    <hr>
-    <div class="container" id="cycles" style="overflow-x: scroll;">
-      <label class="label">3. Click on a Connection</label>
-    </div>
-  </section>
+    <section class="container">
+      <div class="columns">
+        <!-- Sidebar -->
+        <div class="column pt-5 is-one-quarter">
+          <div class="container" id="links"></div>
+        </div>
+        <div class="column pt-5">
+          <div class="container is-primary mb-2">
+            <span class="has-text-white">Selected Traffic Light:</span>
+            <span class="has-text-white" id="selected-light"></span>
+          </div>
+          <div class="container mb-2" id="button"></div>
+          <div class="container">Prediction</div>
+          <div class="container mb-5" id="prediction"></div>
+          <div class="container">History</div>
+          <div class="container mb-5" id="cycles"></div>
+          <div id="map"></div>
+        </div>
+      </div>
+    </section>
   </body>
 
   <script>
-    // On document load, insert the url without "analyzer.html" into the input field.
-    document.addEventListener('DOMContentLoaded', function() {
-      loadConnections();
-    });
+    var map = L.map('map').setView([51.505, -0.09], 13);
+    // The currently displayed linestring
+    var line = null;
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        className: 'map-tiles'
+    }).addTo(map);
+
+    // If we have a hash, load the traffic light.
+    if (window.location.hash) {
+      load(window.location.hash.substring(1));
+    }
+
+    loadConnections();
 
     let connections = [];
 
@@ -75,56 +134,76 @@
     }
 
     function loadConnections() {
-      // Get the endpoint url from the input field with id "url"
-      const url = window.location.href
-        .replace('analyzer.html', '')
-        .replace('#', '');
+      // Get the endpoint url (url without "analyzer.html" and any params/hash).
+      const url = window.location.href.split('/').slice(0, -1).join('/');
+      // First, clear items from the container.
+      const links = document.getElementById('links');
+      links.innerHTML = '';
       // Using the fetch api, get the connections via url/cycles/ids
-      fetch(url + 'index.json')
+      fetch(url + '/index.json')
         .then(response => response.json())
         .then(data => {
           connections = data;
           // The data is a list of strings representing the ids of the connections.
-          // First, clear items from the container.
-          const links = document.getElementById('links');
-          links.innerHTML = '';
           // Create a label for the number of connections.
           const label = document.createElement('label');
-          label.className = 'label';
+          label.className = 'label has-text-white';
           label.innerHTML = 'Loaded ' + data.length + ' configurations.';
           links.appendChild(label);
           // Create a search field to filter the connections.
           const search = document.createElement('input');
-          search.className = 'input';
+          search.className = 'input mb-2';
           search.type = 'text';
           search.placeholder = 'Search';
           search.onkeyup = function() {
             const filter = search.value.toUpperCase();
             const list = document.getElementById('links');
             const items = list.getElementsByTagName('button');
+            let displayedItems = 0;
             for (let i = 0; i < items.length; i++) {
               const item = items[i];
               const text = item.textContent || item.innerText;
               if (text.toUpperCase().indexOf(filter) > -1) {
                 item.style.display = '';
+                displayedItems++;
               } else {
                 item.style.display = 'none';
               }
             }
+            label.innerHTML = 'Loaded ' + data.length + ' configurations. Showing ' + displayedItems + '.';
           };
           links.appendChild(search);
           // Create a list of links to the connections.
           const list = document.createElement('div');
           list.className = 'list';
           for (let i = 0; i < data.length; i++) {
+            const indexEntry = data[i];
+
             const button = document.createElement('button');
-            button.className = 'button is-secondary mt-2 mr-2';
-            button.innerHTML = data[i];
-            let hash = data[i].split('-')[0].replace('.json', '');
-            button.style.borderColor = stringToColor(hash);
+            button.className = 'button is-secondary mt-2 has-background-dark has-text-white';
+            button.innerHTML = indexEntry.file;
+            const diff = Date.now() - new Date(indexEntry.lastUpdated);
+            const ago = diff / 1000 / 60;
+            if (ago < 2) {
+              button.innerHTML += ' <span class="tag is-info ml-2">Now</span>';
+            } else {
+              const time = new Date(indexEntry.lastUpdated).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: false });
+              const weekday = new Date(indexEntry.lastUpdated).toLocaleDateString('en-US', { weekday: 'short' });
+              button.innerHTML += ' <span class="tag is-black ml-2"> ' + weekday + ' ' + time + ' </span>';
+            }
+            if (indexEntry.carDetected) {
+              button.innerHTML += ' <span class="tag is-primary ml-2">🚙 CD</span>';
+            }
+            if (indexEntry.bikeDetected) {
+              button.innerHTML += ' <span class="tag is-primary ml-2">🚴‍♂️ BD</span>';
+            }
+            button.innerHTML += ' <span class="tag is-black ml-2"> N=' + indexEntry.cycleCount + ' </span>';
+            button.style.width = '100%';
+            let thingName = indexEntry.file.split('-')[0].replace('.json', '');
+            button.style.borderColor = stringToColor(thingName);
             button.style.borderWidth = '2px';
             button.onclick = function() {
-              loadCycles(data[i]);
+              load(indexEntry.file);
             };
             list.appendChild(button);
           }
@@ -132,38 +211,242 @@
         });
     }
 
-    function loadCycles(url) {
-      console.log('Loading cycles from ' + url);
-      // Load the cycles from the url
-      fetch(url)
+    function load(jsonfile) {
+      console.log('Loading cycles from ' + jsonfile);
+      // Append the jsonfile as a GET parameter to the url (set the browser url).
+      window.location.hash = jsonfile;
+      // Set the page title
+      document.title = 'Analyzer - ' + jsonfile;
+      // Set the thing name.
+      let thingName = jsonfile.split('-')[0].replace('.json', '');
+      const color = stringToColor(thingName);
+      document.getElementById('selected-light').innerHTML = 
+        '<span class="tag mx-2 has-text-white" style="background-color: ' + color + ';">' + thingName + '</span>';
+      document.getElementById('selected-light').innerHTML += 
+        '<span class="tag mx-2 is-black"> ' + 'python3 observe.py -name ' + thingName; + ' </span>';
+
+      // Load the prediction
+      const prediction = document.getElementById('prediction');
+      prediction.innerHTML = '';
+      fetch('predictions/' + jsonfile)
         .then(response => response.json())
         .then(data => {
-          // The data is a list of cycles.
-          // First, clear items from the container.
-          const cycles = document.getElementById('cycles');
-          cycles.innerHTML = '';
+            const start = new Date(data.referenceTime);
 
-          // For each cycle, create a list of divs for each state in the segment.
-          data.forEach(cycle => {
-            let i = 0;
-            cycle.forEach(state => {
-              i++;
+            const programLabel = document.createElement('label');
+            programLabel.className = 'label has-text-white';
+            if (data.programId) {
+              programLabel.innerHTML = 'P ' + data.programId;
+            } else {
+              programLabel.innerHTML = 'P -';
+            }
+            programLabel.style.display = 'inline-block';
+            programLabel.style.marginRight = '10px';
+            programLabel.style.width = '25px'; // Align the phases.
+            prediction.appendChild(programLabel);
+
+            const startTimeLabel = document.createElement('label');
+            startTimeLabel.className = 'label has-text-white';
+            startTimeLabel.innerHTML = data.referenceTime;
+            startTimeLabel.style.display = 'inline-block';
+            startTimeLabel.style.marginRight = '10px';
+            startTimeLabel.style.width = '190px'; // Align the phases.
+            prediction.appendChild(startTimeLabel);
+
+            // Traverse each second from start to end.
+            function decodeBase64(str) {
+              return Uint8Array.from(atob(str), c => c.charCodeAt(0))
+            }
+            const phases = [...decodeBase64(data.now), ...decodeBase64(data.then)]
+            const qualities = [...decodeBase64(data.nowQuality), ...decodeBase64(data.thenQuality)]
+            for (let i = 0; i < phases.length; i++) {
+              const phase = phases[i];
+              const quality = qualities[i];
+              // Create a div for the state.
               const div = document.createElement('div');
-              // Make a pixel square for each state.
               div.style.width = '6px';
-              div.style.height = '16px';
+              div.style.height = '32px';
               div.style.marginRight = '1px';
               div.style.borderRadius = '3px';
-              div.className = 'state-' + state;
               div.style.display = 'inline-block';
-              div.dataset.state = '' + i;
-              cycles.appendChild(div);
-            });
+              div.style.lineHeight = '0px';
+              div.style.whiteSpace = 'normal';
+
+              const phaseDiv = document.createElement('div');
+              phaseDiv.style.width = '6px';
+              phaseDiv.style.height = '14px';
+              phaseDiv.style.borderRadius = '3px';
+              phaseDiv.style.marginTop = '1px';
+              phaseDiv.style.display = 'inline-block';
+              if (phase) {
+                phaseDiv.className = 'state-' + phase;
+              } else {
+                phaseDiv.className = 'state-unknown';
+              }
+              if (quality) {
+                phaseDiv.style.opacity = quality / 100;
+              } else {
+                phaseDiv.style.opacity = 1;
+              }
+              div.appendChild(phaseDiv);
+              prediction.appendChild(div);
+            }
+        });
+
+      const cycles = document.getElementById('cycles');
+      cycles.innerHTML = '';
+      // Load the cycles from the url
+      fetch('history/' + jsonfile)
+        .then(response => response.json())
+        .then(data => {
+          data.cycles.reverse().forEach(cycle => {
+            // Parse the start and end time of the cycle.
+            const start = new Date(cycle.startTime);
+            const end = new Date(cycle.endTime);
+
+            const programLabel = document.createElement('label');
+            programLabel.className = 'label has-text-white';
+            if (cycle.program) {
+              programLabel.innerHTML = 'P ' + cycle.program;
+            } else {
+              programLabel.innerHTML = 'P -';
+            }
+            programLabel.style.display = 'inline-block';
+            programLabel.style.marginRight = '10px';
+            programLabel.style.width = '25px'; // Align the phases.
+            cycles.appendChild(programLabel);
+
+            const startTimeLabel = document.createElement('label');
+            startTimeLabel.className = 'label has-text-white';
+            startTimeLabel.innerHTML = cycle.startTime;
+            startTimeLabel.style.display = 'inline-block';
+            startTimeLabel.style.marginRight = '10px';
+            startTimeLabel.style.width = '190px'; // Align the phases.
+            cycles.appendChild(startTimeLabel);
+
+            // Traverse each second from start to end.
+            if (!(end < start || end - start > 1_000_000 || end - start < 10_000)) {
+              for (let time = start; time <= end; time.setSeconds(time.getSeconds() + 1)) {
+                let phase;
+                for (let j = cycle.phases.length - 1; j >= 0; j--) {
+                  const p = cycle.phases[j];
+                  const phaseTime = new Date(p.time);
+                  // If the phase is in the future, skip it.
+                  if (phaseTime > time) {
+                    continue;
+                  }
+                  phase = p;
+                  break;
+                }
+                let bike;
+                for (let j = cycle.bikes.length - 1; j >= 0; j--) {
+                  const b = cycle.bikes[j];
+                  const bikeTime = new Date(b.time);
+                  // If the detected bike is in the future, skip it.
+                  if (bikeTime > time) {
+                    continue;
+                  }
+                  bike = b;
+                  break;
+                }
+                let car;
+                for (let j = cycle.cars.length - 1; j >= 0; j--) {
+                  const c = cycle.cars[j];
+                  const carTime = new Date(c.time);
+                  // If the detected car is in the future, skip it.
+                  if (carTime > time) {
+                    continue;
+                  }
+                  car = c;
+                  break;
+                }
+
+                // Create a div for the state.
+                const div = document.createElement('div');
+                div.style.width = '6px';
+                div.style.height = '32px';
+                div.style.marginRight = '1px';
+                div.style.borderRadius = '3px';
+                div.style.display = 'inline-block';
+                div.style.lineHeight = '0px';
+                div.style.whiteSpace = 'normal';
+
+                const bikeDiv = document.createElement('div');
+                bikeDiv.style.width = '6px';
+                bikeDiv.style.height = '7px';
+                bikeDiv.style.borderRadius = '3px';
+                bikeDiv.style.backgroundColor = 'blue';
+                bikeDiv.style.display = 'inline-block';
+                if (bike) {
+                  bikeDiv.style.background = 'rgba(0, 255, 255, ' + bike.pct / 100 + ')';
+                } else {
+                  bikeDiv.style.opacity = 0;
+                }
+                div.appendChild(bikeDiv);
+
+                const carDiv = document.createElement('div');
+                carDiv.style.width = '6px';
+                carDiv.style.height = '7px';
+                carDiv.style.borderRadius = '3px';
+                carDiv.style.marginTop = '1px';
+                carDiv.style.display = 'inline-block';
+                if (car) {
+                  carDiv.style.background = 'rgba(0, 255, 255, ' + car.pct / 100 + ')';
+                } else {
+                  carDiv.style.opacity = 0;
+                }
+                div.appendChild(carDiv);
+
+                const phaseDiv = document.createElement('div');
+                phaseDiv.style.width = '6px';
+                phaseDiv.style.height = '14px';
+                phaseDiv.style.borderRadius = '3px';
+                phaseDiv.style.marginTop = '1px';
+                phaseDiv.style.display = 'inline-block';
+                if (phase) {
+                  phaseDiv.className = 'state-' + phase.color;
+                } else {
+                  phaseDiv.className = 'state-unknown';
+                }
+                div.appendChild(phaseDiv);
+                cycles.appendChild(div);
+              }
+            }
+
+            const endTimeLabel = document.createElement('label');
+            endTimeLabel.className = 'label has-text-white';
+            endTimeLabel.innerHTML = cycle.endTime;
+            endTimeLabel.style.display = 'inline-block';
+            endTimeLabel.style.marginLeft = '10px';
+            cycles.appendChild(endTimeLabel);
             // Add a hr between each cycle.
             const spacer = document.createElement('div');
             spacer.className = 'mt-1';
             cycles.appendChild(spacer);
           });
+        });
+
+      let url = 'https://tld.iot.hamburg.de/v1.1/Things?%24Filter=name%20eq%20%27' + thingName + '%27&$Expand=Locations';
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          console.log(data)
+          // Add a linestring to the Leaflet map.
+          const geometry = data.value[0].Locations[0].location.geometry;
+          const coordinates = geometry.coordinates; // MultiLineString
+          let latlngs = [];
+          coordinates[1].forEach(c => {
+            latlngs.push([c[1], c[0]]);
+          });
+          if (line) {
+            map.removeLayer(line);
+          }
+          line = L.polyline(latlngs, {
+            color: color, 
+            weight: 5,
+          }).addTo(map);
+          // Zoom the map to the line.
+          map.fitBounds(line.getBounds(), {padding: [100, 100]});
         });
     }
   </script>
