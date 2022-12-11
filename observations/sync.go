@@ -6,14 +6,26 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"predictor/env"
 	"predictor/log"
 	"sync"
+	"time"
 )
 
 func prefetchMostRecentObservationsPage(page int) (more bool) {
 	elementsPerPage := 100
-	queryUrl := baseUrl + "Datastreams?%24filter=" + url.QueryEscape(observationsQuery)
-	pageUrl := queryUrl + "&%24skip=" + url.QueryEscape(fmt.Sprintf("%d", page*elementsPerPage))
+	pageUrl := env.SensorThingsBaseUrl + "Datastreams?" + url.QueryEscape(
+		"$filter="+
+			"properties/serviceName eq 'HH_STA_traffic_lights' "+
+			"and (properties/layerName eq 'signal_program') "+
+			"and (Thing/properties/laneType eq 'Radfahrer' "+
+			"  or Thing/properties/laneType eq 'KFZ/Radfahrer' "+
+			"  or Thing/properties/laneType eq 'Fußgänger/Radfahrer' "+
+			"  or Thing/properties/laneType eq 'Bus/Radfahrer' "+
+			"  or Thing/properties/laneType eq 'KFZ/Bus/Radfahrer')"+
+			"&$expand=Thing,Observations($orderby=phenomenonTime;$top=1)"+
+			"&$skip="+fmt.Sprintf("%d", page*elementsPerPage),
+	)
 	resp, err := http.Get(pageUrl)
 	if err != nil {
 		log.Warning.Println("Could not sync observations:", err)
@@ -49,22 +61,21 @@ func prefetchMostRecentObservationsPage(page int) (more bool) {
 		if len(expandedDatastream.Observations) == 0 {
 			continue
 		}
+		o := expandedDatastream.Observations[0]
 		switch expandedDatastream.Properties.LayerName {
-		case "primary_signal":
-			cycle, _ := primarySignalCycles.LoadOrStore(expandedDatastream.Thing.Name, &Cycle{})
-			cycle.(*Cycle).add(expandedDatastream.Observations[0])
+		// At the moment, we only care about signal programs.
 		case "signal_program":
+			// Throw away program observations that were made before 0:00.
+			// Note that this also means that we throw away observations that
+			// were made before 0:00 when predictions are made at 0:00. This
+			// is to prevent the predictions from being based on program
+			// observations that are far in the past.
+			today0OClock := time.Now().Truncate(24 * time.Hour)
+			if o.PhenomenonTime.Before(today0OClock) {
+				continue
+			}
 			cycle, _ := signalProgramCycles.LoadOrStore(expandedDatastream.Thing.Name, &Cycle{})
-			cycle.(*Cycle).add(expandedDatastream.Observations[0])
-		case "detector_car":
-			cycle, _ := carDetectorCycles.LoadOrStore(expandedDatastream.Thing.Name, &Cycle{})
-			cycle.(*Cycle).add(expandedDatastream.Observations[0])
-		case "detector_bike":
-			cycle, _ := bikeDetectorCycles.LoadOrStore(expandedDatastream.Thing.Name, &Cycle{})
-			cycle.(*Cycle).add(expandedDatastream.Observations[0])
-		case "cycle_second":
-			cycle, _ := cycleSecondCycles.LoadOrStore(expandedDatastream.Thing.Name, &Cycle{})
-			cycle.(*Cycle).add(expandedDatastream.Observations[0])
+			cycle.(*Cycle).add(o)
 		default:
 			continue
 		}
@@ -93,7 +104,7 @@ func PrefetchMostRecentObservations() {
 			}(page)
 			page++
 		}
-		log.Info.Printf("Bulk prefetching observations from %s pages %d-%d...", baseUrl, page-10, page-1)
+		log.Info.Printf("Bulk prefetching observations from pages %d-%d...", page-10, page-1)
 		wg.Wait()
 		if !foundMore {
 			break

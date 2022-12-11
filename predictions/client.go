@@ -3,6 +3,7 @@ package predictions
 import (
 	"fmt"
 	"math/rand"
+	"predictor/env"
 	"predictor/log"
 	"time"
 
@@ -13,9 +14,9 @@ import (
 var client mqtt.Client
 
 func ConnectPredictionPublisher() {
-	log.Info.Println("Connecting to prediction mqtt broker at :", predictionMqttUrl)
+	log.Info.Println("Connecting to prediction mqtt broker at :", env.PredictionMqttUrl)
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker(predictionMqttUrl)
+	opts.AddBroker(env.PredictionMqttUrl)
 	opts.SetConnectTimeout(10 * time.Second)
 	opts.SetConnectRetry(true)
 	opts.SetConnectRetryInterval(5 * time.Second)
@@ -30,7 +31,7 @@ func ConnectPredictionPublisher() {
 	})
 	randSource := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(randSource)
-	clientID := fmt.Sprintf("priobike-prediction-service-%d", random.Int())
+	clientID := fmt.Sprintf("priobike-predictor-%d", random.Int())
 	log.Info.Println("Using client id:", clientID)
 	opts.SetClientID(clientID)
 	opts.SetOrderMatters(false)

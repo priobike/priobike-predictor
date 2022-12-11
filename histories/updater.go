@@ -2,6 +2,7 @@ package histories
 
 import (
 	"fmt"
+	"predictor/env"
 	"predictor/log"
 	"predictor/observations"
 	"sort"
@@ -23,11 +24,11 @@ func UpdateHistory(
 	thingName string,
 	newCycleStartTime time.Time,
 	newCycleEndTime time.Time,
-	completedPrimarySignalCycle observations.CompletedCycle,
-	completedSignalProgramCycle observations.CompletedCycle,
-	completedCycleSecondCycle observations.CompletedCycle,
-	completedCarDetectorCycle observations.CompletedCycle,
-	completedBikeDetectorCycle observations.CompletedCycle,
+	completedPrimarySignalCycle observations.CycleSnapshot,
+	completedSignalProgramCycle observations.CycleSnapshot,
+	completedCycleSecondCycle observations.CycleSnapshot,
+	completedCarDetectorCycle observations.CycleSnapshot,
+	completedBikeDetectorCycle observations.CycleSnapshot,
 ) (History, error) {
 	if (requested%1000) == 0 && requested > 0 {
 		log.Info.Printf("History file updates requested %d, processed %d, canceled %d", requested, processed, canceled)
@@ -66,13 +67,6 @@ func UpdateHistory(
 	if err != nil {
 		atomic.AddUint64(&canceled, 1)
 		return History{}, fmt.Errorf("phase validity check failed: %v", err)
-	}
-
-	// Get the last program that was running on the signal.
-	var programId *byte
-	mostRecentSignalProgramObservation, err := completedSignalProgramCycle.GetMostRecentObservation()
-	if err == nil {
-		programId = &mostRecentSignalProgramObservation.Result
 	}
 
 	// Check the car detector state for the thing.
@@ -137,20 +131,25 @@ func UpdateHistory(
 		return bikes[i].Time.Before(bikes[j].Time)
 	})
 
-	// Append this history to the history file.
-	var path = fmt.Sprintf("%s/history/%s.json", staticPath, thingName)
-	if programId != nil {
-		path = fmt.Sprintf("%s/history/%s-P%d.json", staticPath, thingName, *programId)
-	}
-
-	history, err := appendToHistoryFile(path, HistoryCycle{
+	historyCycle := &HistoryCycle{
 		StartTime: newCycleStartTime,
 		EndTime:   newCycleEndTime,
-		Program:   programId,
 		Phases:    phases,
 		Cars:      cars,
 		Bikes:     bikes,
-	})
+	}
+
+	// Append this history to the history file.
+	var path = fmt.Sprintf("%s/history/%s.json", env.StaticPath, thingName)
+	// Get the last program that was running on the signal.
+	programObservation, err := completedSignalProgramCycle.GetMostRecentObservation()
+	if err == nil {
+		programId := programObservation.Result
+		path = fmt.Sprintf("%s/history/%s-P%d.json", env.StaticPath, thingName, programId)
+		historyCycle.Program = &programId
+	}
+
+	history, err := appendToHistoryFile(path, *historyCycle)
 	if err != nil {
 		atomic.AddUint64(&canceled, 1)
 		return History{}, err

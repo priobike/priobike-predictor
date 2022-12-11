@@ -81,12 +81,12 @@ func (p *oldPrediction) UnmarshalJSON(data []byte) error {
 var oldServicePredictions = &sync.Map{}
 
 // Get the current prediction from the old service for the given thing.
-func getOldServicePrediction(thingName string) (oldPrediction, error) {
+func getOldServicePrediction(thingName string) (oldPrediction, bool) {
 	prediction, ok := oldServicePredictions.Load(thingName)
 	if !ok {
-		return oldPrediction{}, fmt.Errorf("no prediction for thing %s", thingName)
+		return oldPrediction{}, false
 	}
-	return prediction.(oldPrediction), nil
+	return prediction.(oldPrediction), true
 }
 
 // An integer that represents the number of messages received.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"predictor/env"
 	"sync"
 	"time"
 )
@@ -77,7 +78,7 @@ func UpdateHistoryIndex() {
 	// Acquire the file locks for additional safety.
 	indexFileLock.Lock()
 	defer indexFileLock.Unlock()
-	indexFile, err := os.Create(fmt.Sprintf("%s/index.json", staticPath))
+	indexFile, err := os.Create(fmt.Sprintf("%s/index.json", env.StaticPath))
 	if err != nil {
 		panic(err)
 	}

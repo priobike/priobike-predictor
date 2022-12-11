@@ -1,4 +1,4 @@
-package util
+package calc
 
 // Calculate the min of two integers.
 func Min64(x, y int64) int64 {

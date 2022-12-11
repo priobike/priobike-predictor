@@ -1,7 +1,7 @@
 package histories
 
 import (
-	"predictor/util"
+	"predictor/calc"
 	"time"
 )
 
@@ -69,14 +69,14 @@ func (h History) Flatten() [][]byte {
 		}
 		flattenedCycle := make([]byte, endTime-startTime)
 		for i := 0; i < len(cycle.Phases); i++ {
-			startIdx := util.Max64(cycle.Phases[i].Time.Unix()-startTime, 0)
+			startIdx := calc.Max64(cycle.Phases[i].Time.Unix()-startTime, 0)
 			var endIdx int64
 			if i == len(cycle.Phases)-1 {
 				// Fill the rest of the cycle with the last phase.
-				endIdx = util.Max64(startIdx, endTime-startTime)
+				endIdx = calc.Max64(startIdx, endTime-startTime)
 			} else {
 				// Fill until the next phase.
-				endIdx = util.Max64(startIdx, util.Min64(cycle.Phases[i+1].Time.Unix()-startTime, endTime-startTime))
+				endIdx = calc.Max64(startIdx, calc.Min64(cycle.Phases[i+1].Time.Unix()-startTime, endTime-startTime))
 			}
 			for j := startIdx; j < endIdx; j++ {
 				flattenedCycle[j] = cycle.Phases[i].Color

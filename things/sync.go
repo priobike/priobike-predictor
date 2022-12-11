@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"predictor/env"
 	"predictor/log"
 	"sync"
 )
@@ -36,8 +37,22 @@ var BikeDetectorDatastreams = &sync.Map{}
 
 func syncThingsPage(page int) (more bool) {
 	elementsPerPage := 100
-	queryUrl := baseUrl + "Things?%24filter=" + url.QueryEscape(thingsQuery)
-	pageUrl := queryUrl + "&%24skip=" + url.QueryEscape(fmt.Sprintf("%d", page*elementsPerPage))
+	pageUrl := env.SensorThingsBaseUrl + "Things?" + url.QueryEscape(
+		"$filter="+
+			"Datastreams/properties/serviceName eq 'HH_STA_traffic_lights' "+
+			"and (Datastreams/properties/layerName eq 'primary_signal' "+
+			"  or Datastreams/properties/layerName eq 'signal_program' "+
+			"  or Datastreams/properties/layerName eq 'cycle_second' "+
+			"  or Datastreams/properties/layerName eq 'detector_car' "+
+			"  or Datastreams/properties/layerName eq 'detector_bike') "+
+			"and (properties/laneType eq 'Radfahrer' "+
+			"  or properties/laneType eq 'KFZ/Radfahrer' "+
+			"  or properties/laneType eq 'Fußgänger/Radfahrer' "+
+			"  or properties/laneType eq 'Bus/Radfahrer' "+
+			"  or properties/laneType eq 'KFZ/Bus/Radfahrer')"+
+			"&$expand=Datastreams"+
+			"&$skip="+fmt.Sprintf("%d", page*elementsPerPage),
+	)
 
 	resp, err := http.Get(pageUrl)
 	if err != nil {
@@ -115,7 +130,7 @@ func SyncThings() {
 			}(page)
 			page++
 		}
-		log.Info.Printf("Bulk syncing things from %s pages %d-%d...", baseUrl, page-10, page-1)
+		log.Info.Printf("Bulk syncing things from pages %d-%d...", page-10, page-1)
 		wg.Wait()
 		if !foundMore {
 			break

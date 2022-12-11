@@ -1,4 +1,4 @@
-package util
+package calc
 
 func Abs(x int) int {
 	if x < 0 {

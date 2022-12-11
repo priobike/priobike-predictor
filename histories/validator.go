@@ -14,6 +14,10 @@ func validatePhases(startTime time.Time, endTime time.Time, events []HistoryPhas
 	if lenEvents == 0 {
 		return fmt.Errorf("no phases")
 	}
+	// We need at least one phase before the start time (a "full" cycle).
+	if events[0].Time.After(startTime) {
+		return fmt.Errorf("no phase before start time")
+	}
 	// Don't update the history file if a the phases are out of order.
 	for i := 1; i < lenEvents; i++ {
 		prev := events[i-1]

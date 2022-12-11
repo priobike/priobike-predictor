@@ -3,7 +3,6 @@ package observations
 import (
 	"encoding/json"
 	"predictor/log"
-	"predictor/util"
 	"time"
 )
 
@@ -43,21 +42,4 @@ func (o *Observation) UnmarshalJSON(data []byte) error {
 	}
 	o.Result = byte(temp.Result)
 	return nil
-}
-
-// Flatten a list of observations into a list of seconds by their result.
-func Flatten(observations []Observation) []byte {
-	if len(observations) == 0 {
-		return []byte{}
-	}
-	flattened := []byte{}
-	for i := 1; i < len(observations); i++ {
-		prev := observations[i-1]
-		curr := observations[i]
-		sDiff := int(curr.PhenomenonTime.Sub(prev.PhenomenonTime).Seconds())
-		for j := 0; j < util.Min(sDiff, 300 /* Avoid too long cycles. */); j++ {
-			flattened = append(flattened, prev.Result)
-		}
-	}
-	return flattened
 }

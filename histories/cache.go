@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"predictor/env"
 	"predictor/log"
 	"predictor/observations"
 	"sync"
@@ -86,20 +87,14 @@ func LoadHistory(path string) (History, error) {
 func LoadBestFittingHistory(thingName string) (history History, programId *byte, err error) {
 	programsToSearch := []*byte{}
 	// Lookup the last running program.
-	signalProgramCycle, err := observations.GetSignalProgramCycle(thingName)
-	if err == nil {
-		lastProgramObservation, err := signalProgramCycle.GetMostRecentObservation()
-		programId := lastProgramObservation.Result
-		if err == nil {
-			// Search for the history that fits the program, if it exists.
-			programsToSearch = append(programsToSearch, &programId)
-		}
+	if programObservation, ok := observations.GetCurrentProgram(thingName); ok {
+		programsToSearch = append(programsToSearch, &programObservation.Result)
 	}
 	programsToSearch = append(programsToSearch, nil)
 	for _, programId := range programsToSearch {
-		var path = fmt.Sprintf("%s/history/%s.json", staticPath, thingName)
+		var path = fmt.Sprintf("%s/history/%s.json", env.StaticPath, thingName)
 		if programId != nil {
-			path = fmt.Sprintf("%s/history/%s-P%d.json", staticPath, thingName, *programId)
+			path = fmt.Sprintf("%s/history/%s-P%d.json", env.StaticPath, thingName, *programId)
 		}
 		history, err := LoadHistory(path)
 		if err != nil {

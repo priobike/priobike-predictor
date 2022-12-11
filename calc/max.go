@@ -1,4 +1,4 @@
-package util
+package calc
 
 // Calculate the max of two integers.
 func Max64(x, y int64) int64 {

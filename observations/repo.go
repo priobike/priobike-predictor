@@ -17,6 +17,20 @@ func GetPrimarySignalCycle(thingName string) (*Cycle, error) {
 	return cycle.(*Cycle), nil
 }
 
+// Get the current color for a given thing.
+func GetCurrentPrimarySignal(thingName string) (Observation, bool) {
+	cycle, err := GetPrimarySignalCycle(thingName)
+	if err != nil {
+		return Observation{}, false
+	}
+	snapshot := cycle.MakeSnapshot()
+	currentState, err := snapshot.GetMostRecentObservation()
+	if err != nil {
+		return Observation{}, false
+	}
+	return currentState, true
+}
+
 // A map that contains all received `signal_program` observations to the Thing name.
 // Signal program observations tell which program the traffic light is currently running.
 var signalProgramCycles = &sync.Map{}
@@ -30,16 +44,17 @@ func GetSignalProgramCycle(thingName string) (*Cycle, error) {
 }
 
 // Get the currently running program for a given thing.
-func GetCurrentProgram(thingName string) (byte, bool) {
+func GetCurrentProgram(thingName string) (Observation, bool) {
 	cycle, err := GetSignalProgramCycle(thingName)
 	if err != nil {
-		return 0, false
+		return Observation{}, false
 	}
-	currentState, err := cycle.GetMostRecentObservation()
+	snapshot := cycle.MakeSnapshot()
+	currentState, err := snapshot.GetMostRecentObservation()
 	if err != nil {
-		return 0, false
+		return Observation{}, false
 	}
-	return currentState.Result, true
+	return currentState, true
 }
 
 // A map that contains all received `detector_car` observations to the Thing name.

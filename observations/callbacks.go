@@ -17,13 +17,12 @@ var BikeDetectorCallback = func(thingName string) {}
 // A callback that is called when a `cycle_second` message is received.
 var CycleSecondCallback = func(
 	thingName string,
-	newCycleStartTime time.Time,
-	newCycleEndTime time.Time,
-	completedPrimarySignalCycle CompletedCycle,
-	completedSignalProgramCycle CompletedCycle,
-	completedCycleSecondCycle CompletedCycle,
-	completedCarDetectorCycle CompletedCycle,
-	completedBikeDetectorCycle CompletedCycle,
+	newCycleStartTime time.Time, newCycleEndTime time.Time,
+	completedPrimarySignalCycle CycleSnapshot,
+	completedSignalProgramCycle CycleSnapshot,
+	completedCycleSecondCycle CycleSnapshot,
+	completedCarDetectorCycle CycleSnapshot,
+	completedBikeDetectorCycle CycleSnapshot,
 ) {
 	// The default implementation does nothing.
 }

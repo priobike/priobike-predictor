@@ -22,6 +22,7 @@
       .comparison {
         font-size: 8px;
         width: 5rem;
+        height: 4rem;
       }
 
       .new-wins {
@@ -98,16 +99,19 @@
           <h1 class="title has-text-white pt-3">SG Monitor</h1>
           <h1 class="subtitle has-text-white pt-3" id="number"></h1> 
         </div>
-        <div class="column is-8">
+        <div class="column is-4">
           <canvas id="chart"></canvas>
-        </div>     
+        </div>
+        <div class="column is-4">
+          <canvas id="chart-old"></canvas>
+        </div>  
       </div>
     </section>
     <div class="container pt-6" id="all"></div>  
   </body>
 
   <script>
-    var chart;
+    var chart, chartOld;
 
     // Every second, get the data from the API.
     setInterval(() => {
@@ -148,6 +152,7 @@
                           scales: {
                               y: {
                                   beginAtZero: true,
+                                  max: metrics.entries.length,
                               },
                               x: {
                                   beginAtZero: true,
@@ -165,11 +170,54 @@
                   chart.update();
                 }
 
+                // Create the chart
+                var ctxOld = document.getElementById('chart-old').getContext('2d');
+                // If the old chart exists, set the metrics.
+                if (!chartOld) {
+                  chartOld = new Chart(ctxOld, {
+                      type: 'bar',
+                      data: {
+                          datasets: [{
+                              label: 'Deviation of predictions in seconds (Old prediction service)',
+                              backgroundColor: Object.keys(metrics.oldDeviations).map(key => {
+                                if (key > 0) {
+                                  return 'rgb(255, 255, 0)';
+                                } else {
+                                  return 'rgb(255, 255, 255)';
+                                }
+                              }),
+                              borderColor: 'rgb(255, 255, 255)',
+                              data: metrics.oldDeviations
+                          }]
+                      },
+                      options: {
+                          scales: {
+                              y: {
+                                  beginAtZero: true,
+                                  max: metrics.entries.length,
+                              },
+                              x: {
+                                  beginAtZero: true,
+                              }
+                          },
+                          animation: {
+                            duration: 0
+                          },
+                          responsive: true,
+                          maintainAspectRatio: false
+                      }
+                  });
+                } else {
+                  chartOld.data.datasets[0].data = metrics.oldDeviations;
+                  chartOld.update();
+                }
+
                 for (const state of metrics.entries) {
                     let container = document.getElementById(state.name);
                     let actualEle = document.getElementById(state.name + '-actual');
                     let predictedEle = document.getElementById(state.name + '-predicted');
                     let oldEle = document.getElementById(state.name + '-old');
+                    let nameEle = document.getElementById(state.name + '-name');
                     if (!actualEle && !predictedEle && !oldEle) {
                         container = document.createElement('a');
                         container.id = state.name;
@@ -196,18 +244,26 @@
                         container.appendChild(oldEle);
 
                         nameEle = document.createElement('div');
-                        nameEle.innerText = state.name;
+                        nameEle.id = state.name + '-name';
+                        nameEle.style.paddingTop = '4px';
                         container.appendChild(nameEle);
 
                         document.getElementById('all').appendChild(container);
                     }
+                    let nameText;
                     if (state.program) {
                       container.href = '/analyzer.html#' + state.name + '-P' + state.program + '.json';
-                      nameEle.innerText = state.name + '-P' + state.program;
+                      nameText = state.name + '-P' + state.program;
                     } else {
                       container.href = '/analyzer.html#' + state.name + '.json';
-                      nameEle.innerText = state.name;
+                      nameText = state.name;
                     }
+                    if (state.age) {
+                      nameText += '<br>(' + state.age + 's ago)';
+                    } else {
+                      nameText += '<br>(n/a ago)';
+                    }
+                    nameEle.innerHTML = nameText;
                     if (state.actual === state.predicted && state.actual !== state.old) {
                         container.className = 'comparison new-wins';
                     } else if (state.actual !== state.predicted && state.actual === state.old) {

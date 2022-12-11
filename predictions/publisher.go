@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"predictor/env"
 	"predictor/log"
 	"predictor/things"
 	"sync"
@@ -14,20 +15,29 @@ import (
 // The most recent prediction by their thing name.
 var current = &sync.Map{}
 
-// The time when the last prediction was requested, by their thing name.
-var lastRequested = &sync.Map{}
-
 // Get the most recent prediction for a given thing.
-func Current(thingName string) (Prediction, error) {
+func GetCurrentPrediction(thingName string) (Prediction, bool) {
 	prediction, ok := current.Load(thingName)
 	if !ok {
-		return Prediction{}, fmt.Errorf("no prediction for thing %s", thingName)
+		return Prediction{}, false
 	}
-	return prediction.(Prediction), nil
+	return prediction.(Prediction), true
 }
 
 // Locks that must be used when making a prediction.
 var predictionLocks = &sync.Map{}
+
+// The times at which a prediction was published for a given thing.
+var times = &sync.Map{}
+
+// Get the last time a prediction was published for a given thing.
+func GetLastPredictionTime(thingName string) (time.Time, bool) {
+	t, ok := times.Load(thingName)
+	if !ok {
+		return time.Time{}, false
+	}
+	return t.(time.Time), true
+}
 
 var requested uint64 = 0
 var canceled uint64 = 0
@@ -40,12 +50,7 @@ func PublishBestPrediction(thingName string) {
 	lock.(*sync.Mutex).Lock()
 	defer lock.(*sync.Mutex).Unlock()
 
-	lastRequested.Store(thingName, time.Now())
-
 	atomic.AddUint64(&requested, 1)
-	if (requested%1000) == 0 && requested > 0 {
-		log.Info.Printf("Predictions requested %d, processed %d, canceled %d", requested, processed, canceled)
-	}
 
 	prediction, err := predict(thingName)
 	if err != nil {
@@ -56,16 +61,17 @@ func PublishBestPrediction(thingName string) {
 	// Check if this prediction equals the last prediction.
 	// This avoids writing the same prediction (costly operation)
 	// multiple times to the file system and the MQTT broker.
-	lastPrediction, err := Current(thingName)
-	if err == nil && prediction.Equals(lastPrediction) {
-		atomic.AddUint64(&canceled, 1)
-		return
+	if lastPrediction, ok := GetCurrentPrediction(thingName); ok {
+		if prediction.Equals(lastPrediction) {
+			atomic.AddUint64(&canceled, 1)
+			return
+		}
 	}
 
 	// Write the prediction to a file.
-	path := fmt.Sprintf("%s/predictions/%s.json", staticPath, thingName)
+	path := fmt.Sprintf("%s/predictions/%s.json", env.StaticPath, thingName)
 	if prediction.ProgramId != nil {
-		path = fmt.Sprintf("%s/predictions/%s-P%d.json", staticPath, thingName, *prediction.ProgramId)
+		path = fmt.Sprintf("%s/predictions/%s-P%d.json", env.StaticPath, thingName, *prediction.ProgramId)
 	}
 
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
@@ -91,27 +97,32 @@ func PublishBestPrediction(thingName string) {
 	}
 
 	current.Store(prediction.ThingName, prediction)
+	times.Store(thingName, time.Now())
+
 	atomic.AddUint64(&processed, 1)
+	if (processed%1000) == 0 && processed > 0 {
+		log.Info.Printf("Predictions requested %d, processed %d, canceled %d", requested, processed, canceled)
+	}
 }
 
 // Publish best predictions for all things.
 func PublishAllBestPredictions() {
-	log.Info.Println("Publishing predictions for all things...")
 	var wg sync.WaitGroup
 	things.Things.Range(func(key, value interface{}) bool {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Check that the prediction wasn't recently requested.
-			// This avoids making too many predictions for the same thing.
-			last, ok := lastRequested.Load(key.(string))
-			if ok && time.Since(last.(time.Time)) < 60*time.Second {
-				return
-			}
 			PublishBestPrediction(key.(string))
 		}()
 		return true
 	})
 	wg.Wait()
-	log.Info.Println("Done publishing predictions for all things.")
+}
+
+// Publish best predictions for all things periodically.
+func PublishAllBestPredictionsPeriodically() {
+	for {
+		PublishAllBestPredictions()
+		time.Sleep(500 * time.Millisecond)
+	}
 }

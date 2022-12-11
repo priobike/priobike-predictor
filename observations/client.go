@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"predictor/env"
 	"predictor/log"
 	"predictor/things"
 	"sync"
@@ -135,35 +136,59 @@ func processMessage(msg mqtt.Message) {
 		cycle.(*Cycle).add(observation)
 
 		// Make sure that all cycles use the same timeframe.
-		newCycleStartTime := cycle.(*Cycle).EndTime
-		newCycleEndTime := observation.PhenomenonTime
+		cycleStartTime := cycle.(*Cycle).EndTime
+		cycleEndTime := observation.PhenomenonTime
+
+		// Clamp startTime and endTime to a 5-second raster. For example, if the
+		// startTime is 12:34:56.123, it will be rounded down to 12:34:55.000.
+		// If the startTime is 12:34:58.123, it will be rounded up to 12:35:00.000.
+		// We do this since sometimes the cycle will be completed with a 1-2 second
+		// delay. This delay would otherwise cause the prediction to deviate
+		// 1-2 seconds each cycle when extrapolating. Note that here delay refers to
+		// an internal delay in the `phenomenonTime`, not a delay in the message.
+		cycleStartTimeRoundedDown := cycleStartTime.Truncate(5 * time.Second)
+		cycleStartTimeRoundedUp := cycleStartTimeRoundedDown.Add(5 * time.Second)
+		// Find the closest time to the original startTime.
+		if cycleStartTime.Sub(cycleStartTimeRoundedDown).Abs() < cycleStartTimeRoundedUp.Sub(cycleStartTime).Abs() {
+			cycleStartTime = cycleStartTimeRoundedDown
+		} else {
+			cycleStartTime = cycleStartTimeRoundedUp
+		}
+		cycleEndTimeRoundedDown := cycleEndTime.Truncate(5 * time.Second)
+		cycleEndTimeRoundedUp := cycleEndTimeRoundedDown.Add(5 * time.Second)
+		// Find the closest time to the original endTime.
+		if cycleEndTime.Sub(cycleEndTimeRoundedDown).Abs() < cycleEndTimeRoundedUp.Sub(cycleEndTime).Abs() {
+			cycleEndTime = cycleEndTimeRoundedDown
+		} else {
+			cycleEndTime = cycleEndTimeRoundedUp
+		}
 
 		// Complete all associated cycles.
-		completedCycleSecondCycle, err := cycle.(*Cycle).complete(newCycleStartTime, newCycleEndTime)
+		completedCycleSecondCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
 			atomic.AddUint64(&canceled, 1)
 			return
 		}
 		cycle, _ = primarySignalCycles.LoadOrStore(thingName, &Cycle{})
-		completedPrimarySignalCycle, err := cycle.(*Cycle).complete(newCycleStartTime, newCycleEndTime)
+		completedPrimarySignalCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
 			atomic.AddUint64(&canceled, 1)
 			return
 		}
 		cycle, _ = signalProgramCycles.LoadOrStore(thingName, &Cycle{})
-		completedSignalProgramCycle, err := cycle.(*Cycle).complete(newCycleStartTime, newCycleEndTime)
+		completedSignalProgramCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
 			atomic.AddUint64(&canceled, 1)
 			return
 		}
 		cycle, _ = carDetectorCycles.LoadOrStore(thingName, &Cycle{})
-		completedCarDetectorCycle, err := cycle.(*Cycle).complete(newCycleStartTime, newCycleEndTime)
+		completedCarDetectorCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
 			atomic.AddUint64(&canceled, 1)
 			return
 		}
 		cycle, _ = bikeDetectorCycles.LoadOrStore(thingName, &Cycle{})
-		completedBikeDetectorCycle, err := cycle.(*Cycle).complete(newCycleStartTime, newCycleEndTime)
+		completedBikeDetectorCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
 			atomic.AddUint64(&canceled, 1)
 			return
@@ -171,8 +196,7 @@ func processMessage(msg mqtt.Message) {
 
 		go CycleSecondCallback(
 			thingName.(string),
-			newCycleStartTime,
-			newCycleEndTime,
+			cycleStartTime, cycleEndTime,
 			completedPrimarySignalCycle,
 			completedSignalProgramCycle,
 			completedCycleSecondCycle,
@@ -193,14 +217,16 @@ func ConnectObservationListener() {
 	})
 
 	// Create a new client for every 1000 subscriptions.
+	// Otherwise messages will queue up after some time, since the client
+	// is not parallelized enough. This is a workaround for the issue.
+	// Bonus points: this also reduces CPU usage significantly.
 	var client mqtt.Client
 	var wg sync.WaitGroup
 	for i, topic := range topics {
 		if (i % 1000) == 0 {
 			wg.Wait()
-			log.Info.Println("Connecting with new client to observation mqtt broker at :", observationMqttUrl)
 			opts := mqtt.NewClientOptions()
-			opts.AddBroker(observationMqttUrl)
+			opts.AddBroker(env.SensorThingsObservationMqttUrl)
 			opts.SetConnectTimeout(10 * time.Second)
 			opts.SetConnectRetry(true)
 			opts.SetConnectRetryInterval(5 * time.Second)
@@ -208,7 +234,10 @@ func ConnectObservationListener() {
 			opts.SetKeepAlive(60 * time.Second)
 			opts.SetPingTimeout(10 * time.Second)
 			opts.SetOnConnectHandler(func(client mqtt.Client) {
-				log.Info.Println("Connected to observation mqtt broker.")
+				log.Info.Printf(
+					"Connected to observation mqtt broker: %s",
+					env.SensorThingsObservationMqttUrl,
+				)
 			})
 			opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
 				log.Warning.Println("Connection to observation mqtt broker lost:", err)
@@ -216,7 +245,6 @@ func ConnectObservationListener() {
 			randSource := rand.NewSource(time.Now().UnixNano())
 			random := rand.New(randSource)
 			clientID := fmt.Sprintf("priobike-predictor-%d", random.Int())
-			log.Info.Println("Using client id:", clientID)
 			opts.SetClientID(clientID)
 			opts.SetOrderMatters(false)
 			opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {

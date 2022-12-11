@@ -40,11 +40,13 @@ type Cycle struct {
 }
 
 // A snapshot of a cycle.
-type CompletedCycle struct {
+type CycleSnapshot struct {
 	// The start of the cycle.
 	StartTime time.Time
 	// The end of the cycle.
 	EndTime time.Time
+	// The pending observations in the cycle.
+	Pending []Observation
 	// The completed observations in the cycle.
 	Completed []Observation
 	// The outdated observation in the cycle.
@@ -87,29 +89,22 @@ func (c *Cycle) RUnlock() {
 	c.EndTimeLock.RUnlock()
 }
 
-func (c *Cycle) GetPending() []Observation {
+// Make a snapshot of the cycle.
+func (c *Cycle) MakeSnapshot() CycleSnapshot {
 	c.RLock()
 	defer c.RUnlock()
-	return c.Pending
-}
-
-// Truncate the pending observations to the given length.
-// This will remove the oldest observations.
-func (c *Cycle) TruncatePending(length int) {
-	c.Lock()
-	defer c.Unlock()
-	if length > len(c.Pending) {
-		return
+	return CycleSnapshot{
+		StartTime: c.StartTime,
+		EndTime:   c.EndTime,
+		Pending:   c.Pending,
+		Completed: c.Completed,
+		Outdated:  c.Outdated,
 	}
-	c.Pending = c.Pending[len(c.Pending)-length:]
 }
 
-// Get the most recent pending observation from a cycle.
-// This will traverse the pending, completed and outdated observations.
-func (c *Cycle) GetMostRecentObservation() (Observation, error) {
-	c.RLock()
-	defer c.RUnlock()
-	// Check the pending observations.
+// Get the most recent observation from a cycle snapshot.
+func (c CycleSnapshot) GetMostRecentObservation() (Observation, error) {
+	// Check if there are any pending observations.
 	if len(c.Pending) == 0 {
 		// Check if there are any completed observations.
 		if len(c.Completed) == 0 {
@@ -124,17 +119,15 @@ func (c *Cycle) GetMostRecentObservation() (Observation, error) {
 	return c.Pending[len(c.Pending)-1], nil
 }
 
-// Get the most recent pending observation from a cycle.
-func (c CompletedCycle) GetMostRecentObservation() (Observation, error) {
-	// Check if there are any completed observations.
-	if len(c.Completed) == 0 {
-		// Check if there is an outdated observation.
-		if c.Outdated == nil {
-			return Observation{}, fmt.Errorf("no observations in cycle")
-		}
-		return *c.Outdated, nil
+// Truncate the pending observations to the given length.
+// This will remove the oldest observations.
+func (c *Cycle) truncatePending(length int) {
+	c.Lock()
+	defer c.Unlock()
+	if length > len(c.Pending) {
+		return
 	}
-	return c.Completed[len(c.Completed)-1], nil
+	c.Pending = c.Pending[len(c.Pending)-length:]
 }
 
 // Add a new observation to a cycle.
@@ -176,13 +169,13 @@ func (c *Cycle) add(observation Observation) {
 // 2. Move all pending observations to completed, but only if they are within the new time frame.
 // 3. Keep the most recent completed observation as outdated.
 // Returns a snapshot copy of the cycle that was completed.
-func (c *Cycle) complete(cycleStartTime time.Time, cycleEndTime time.Time) (CompletedCycle, error) {
+func (c *Cycle) complete(cycleStartTime time.Time, cycleEndTime time.Time) (CycleSnapshot, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	// Make some sanity checks.
 	if cycleEndTime.Before(cycleStartTime) {
-		return CompletedCycle{}, fmt.Errorf("cycle completion time is before end time")
+		return CycleSnapshot{}, fmt.Errorf("cycle completion time is before end time")
 	}
 
 	c.StartTime = cycleStartTime
@@ -190,7 +183,7 @@ func (c *Cycle) complete(cycleStartTime time.Time, cycleEndTime time.Time) (Comp
 
 	// Wait until we have a full cycle (meaning start and end time are set).
 	if c.StartTime.IsZero() || c.EndTime.IsZero() {
-		return CompletedCycle{}, fmt.Errorf("cycle not yet complete")
+		return CycleSnapshot{}, fmt.Errorf("cycle not yet complete")
 	}
 
 	// Collect all observations in the Cycle, in ascending order.
@@ -225,10 +218,11 @@ func (c *Cycle) complete(cycleStartTime time.Time, cycleEndTime time.Time) (Comp
 		}
 	}
 
-	return CompletedCycle{
+	return CycleSnapshot{
 		StartTime: c.StartTime,
 		EndTime:   c.EndTime,
 		Outdated:  c.Outdated,
 		Completed: c.Completed,
+		Pending:   c.Pending,
 	}, nil
 }

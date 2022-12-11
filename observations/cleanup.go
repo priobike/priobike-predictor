@@ -7,27 +7,27 @@ func cleanup() {
 	// Truncate all cycles to the maximum length, to avoid storing too many observations.
 	primarySignalCycles.Range(func(key, value interface{}) bool {
 		cycle := value.(*Cycle)
-		cycle.TruncatePending(20)
+		cycle.truncatePending(20)
 		return true
 	})
 	signalProgramCycles.Range(func(key, value interface{}) bool {
 		cycle := value.(*Cycle)
-		cycle.TruncatePending(5)
+		cycle.truncatePending(5)
 		return true
 	})
 	carDetectorCycles.Range(func(key, value interface{}) bool {
 		cycle := value.(*Cycle)
-		cycle.TruncatePending(300)
+		cycle.truncatePending(300)
 		return true
 	})
 	bikeDetectorCycles.Range(func(key, value interface{}) bool {
 		cycle := value.(*Cycle)
-		cycle.TruncatePending(300)
+		cycle.truncatePending(300)
 		return true
 	})
 	cycleSecondCycles.Range(func(key, value interface{}) bool {
 		cycle := value.(*Cycle)
-		cycle.TruncatePending(5)
+		cycle.truncatePending(5)
 		return true
 	})
 }

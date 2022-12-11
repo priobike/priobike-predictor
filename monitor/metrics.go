@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"predictor/calc"
+	"predictor/env"
 	"predictor/observations"
 	"predictor/phases"
 	"predictor/predictions"
 	"predictor/things"
-	"predictor/util"
 	"sort"
 	"sync"
 	"time"
@@ -21,7 +22,8 @@ type Metrics struct {
 	OldVerifiable int            `json:"oldVerifiable"` // The number of traffic lights sending data and having a prediction by the old service.
 	Correct       int            `json:"correct"`       // The number of traffic lights that were predicted correctly.
 	OldCorrect    int            `json:"oldCorrect"`    // The number of traffic lights that were predicted correctly by the old service.
-	Deviations    map[int]int    `json:"deviations"`    // The time deviation of each prediction from the actual state.
+	Deviations    map[string]int `json:"deviations"`    // The time deviation of each prediction from the actual state.
+	OldDeviations map[string]int `json:"oldDeviations"` // The time deviation of each prediction from the actual state by the old service.
 	MeanDeviation float64        `json:"meanDev"`       // The mean of the deviations.
 	MeanMsgDelay  float64        `json:"meanMsgDelay"`  // The mean message delay.
 }
@@ -33,14 +35,12 @@ type MetricsEntry struct {
 	PredictionQuality *byte  `json:"quality"`   // The quality of the prediction.
 	OldPrediction     *byte  `json:"old"`       // The state of the prediction from the old prediction service.
 	Program           *byte  `json:"program"`   // The program that the traffic light is currently running.
+	PredictionAge     *int   `json:"age"`       // The age of the prediction in seconds.
 }
 
 // The lock that must be used when writing or reading the metrics file.
 // This is to gobally protect concurrent access to the same file.
 var metricsFileLock = &sync.Mutex{}
-
-// The maximum age of a `primary_signal` observation before it is no longer considered valid.
-const maxPrimarySignalAge = 300 * time.Second
 
 func generateMetrics() Metrics {
 	entries := []MetricsEntry{}
@@ -49,9 +49,10 @@ func generateMetrics() Metrics {
 	var oldVerifiable int
 	var correct int
 	var oldCorrect int
+	var deviations = make(map[string]int)
+	var oldDeviations = make(map[string]int)
 	var delaySum float64
 	var delayCount int
-	var deviations = make(map[int]int)
 
 	things.Things.Range(func(key, _ interface{}) bool {
 		thingName := key.(string)
@@ -59,50 +60,75 @@ func generateMetrics() Metrics {
 		defer func() { entries = append(entries, entry) }()
 
 		// Get the current state of the thing.
-		primarySignalCycle, err := observations.GetPrimarySignalCycle(thingName)
-		if err != nil {
+		primarySignalObservation, ok := observations.GetCurrentPrimarySignal(thingName)
+		if !ok {
 			return true
 		}
-		currentState, err := primarySignalCycle.GetMostRecentObservation()
-		if err != nil || time.Since(currentState.PhenomenonTime) > maxPrimarySignalAge {
-			return true
-		}
-		entry.ActualColor = &currentState.Result
+		entry.ActualColor = &primarySignalObservation.Result
 
 		// Get the last running program of the thing.
-		program, hasProgram := observations.GetCurrentProgram(thingName)
-		if hasProgram {
-			entry.Program = &program
+		if programObservation, ok := observations.GetCurrentProgram(thingName); ok {
+			entry.Program = &programObservation.Result
 		}
 
-		// Get the predicted state of the thing.
-		prediction, err := predictions.Current(thingName)
-		if err != nil {
-			return true
-		}
-
-		// Calculate the predicted color.
-		lenNow := len(prediction.Now)
-		lenThen := len(prediction.Then)
 		// In the monitor, we want to compare the actual color with the predicted color.
 		// However, the actual color will always arrive delayed, while the predicted color
 		// may be calculated at the current time. Therefore, we need to delay the prediction.
 		// Calculate the delay between `phenomenonTime` and `receivedTime` of the observation.
-		timeDelay := currentState.ReceivedTime.Sub(currentState.PhenomenonTime)
+		timeDelay := primarySignalObservation.ReceivedTime.
+			Sub(primarySignalObservation.PhenomenonTime)
 		delaySum += timeDelay.Seconds()
 		delayCount++ // For mean delay calculation.
 		// Calculate the current time, subtracting the delay. In this way, we
 		// compare a delayed prediction with a delayed observation.
 		nowWithDelay := time.Now().Add(-timeDelay)
-		delayedTimeInPrediction := int(math.Abs(nowWithDelay.Sub(prediction.ReferenceTime).Seconds()))
-		if delayedTimeInPrediction < len(prediction.Now) {
-			i := delayedTimeInPrediction % lenNow
-			entry.PredictedColor = &prediction.Now[i]
-			entry.PredictionQuality = &prediction.NowQuality[i]
-		} else {
-			i := (delayedTimeInPrediction - lenNow) % lenThen
-			entry.PredictedColor = &prediction.Then[i]
-			entry.PredictionQuality = &prediction.ThenQuality[i]
+
+		if prediction, ok := predictions.GetCurrentPrediction(thingName); ok {
+			delayedTimeInPrediction := int(math.Abs(
+				nowWithDelay.Sub(prediction.ReferenceTime).Seconds(),
+			))
+			lenNow := len(prediction.Now)
+			lenThen := len(prediction.Then)
+			if delayedTimeInPrediction < len(prediction.Now) {
+				i := delayedTimeInPrediction % lenNow
+				entry.PredictedColor = &prediction.Now[i]
+				entry.PredictionQuality = &prediction.NowQuality[i]
+			} else {
+				i := (delayedTimeInPrediction - lenNow) % lenThen
+				entry.PredictedColor = &prediction.Then[i]
+				entry.PredictionQuality = &prediction.ThenQuality[i]
+			}
+
+			// Look to the left and right to calculate the deviation.
+			var minDeviation int = math.MaxInt
+			var matchFound bool
+			for i, predNow := range prediction.Now {
+				tDiff := calc.Abs((delayedTimeInPrediction % lenNow) - i)
+				if tDiff < minDeviation && predNow == *entry.ActualColor {
+					minDeviation = tDiff
+					matchFound = true
+				}
+			}
+			for i, predThen := range prediction.Then {
+				tDiff := calc.Abs(((delayedTimeInPrediction - lenNow) % lenThen) - i)
+				if tDiff < minDeviation && predThen == *entry.ActualColor {
+					minDeviation = tDiff
+					matchFound = true
+				}
+			}
+			if matchFound {
+				if minDeviation > 30 {
+					deviations["30"]++
+				} else {
+					deviations[fmt.Sprintf("%d", minDeviation)]++
+				}
+			}
+		}
+		// Add all missing values to the deviations map.
+		for i := 0; i <= 30; i++ {
+			if _, ok := deviations[fmt.Sprintf("%d", i)]; !ok {
+				deviations[fmt.Sprintf("%d", i)] = 0
+			}
 		}
 
 		if entry.PredictedColor != nil && entry.ActualColor != nil {
@@ -112,30 +138,8 @@ func generateMetrics() Metrics {
 			}
 		}
 
-		// Look to the left and right to calculate the deviation.
-		var minDeviation int = math.MaxInt
-		var matchFound bool
-		for i, predNow := range prediction.Now {
-			tDiff := util.Abs((delayedTimeInPrediction % lenNow) - i)
-			if tDiff < minDeviation && predNow == *entry.ActualColor {
-				minDeviation = tDiff
-				matchFound = true
-			}
-		}
-		for i, predThen := range prediction.Then {
-			tDiff := util.Abs(((delayedTimeInPrediction - lenNow) % lenThen) - i)
-			if tDiff < minDeviation && predThen == *entry.ActualColor {
-				minDeviation = tDiff
-				matchFound = true
-			}
-		}
-		if matchFound {
-			deviations[minDeviation]++
-		}
-
 		// Get the old prediction for comparison.
-		oldPrediction, err := getOldServicePrediction(thingName)
-		if err == nil {
+		if oldPrediction, ok := getOldServicePrediction(thingName); ok {
 			delayedTimeInPrediction := int(math.Abs(nowWithDelay.Sub(oldPrediction.StartTime).Seconds()))
 			if delayedTimeInPrediction > 0 && delayedTimeInPrediction < len(oldPrediction.Value) {
 				value := oldPrediction.Value[delayedTimeInPrediction]
@@ -148,6 +152,39 @@ func generateMetrics() Metrics {
 					entry.OldPrediction = &red
 				}
 			}
+
+			// Look to the left and right to calculate the deviation.
+			var minDeviation int = math.MaxInt
+			var matchFound bool
+			lenValue := len(oldPrediction.Value)
+			for i, v := range oldPrediction.Value {
+				isGreen := v >= oldPrediction.GreentimeThreshold
+				var predNow byte
+				if isGreen {
+					predNow = phases.Green
+				} else {
+					predNow = phases.Red
+				}
+				tDiff := calc.Abs((delayedTimeInPrediction % lenValue) - i)
+				if tDiff < minDeviation && predNow == *entry.ActualColor {
+					minDeviation = tDiff
+					matchFound = true
+				}
+			}
+			if matchFound {
+				if minDeviation > 30 {
+					oldDeviations["30"]++
+				} else {
+					oldDeviations[fmt.Sprintf("%d", minDeviation)]++
+				}
+			}
+		}
+
+		// Add all missing values to the deviations map.
+		for i := 0; i <= 30; i++ {
+			if _, ok := oldDeviations[fmt.Sprintf("%d", i)]; !ok {
+				oldDeviations[fmt.Sprintf("%d", i)] = 0
+			}
 		}
 
 		if entry.OldPrediction != nil && entry.ActualColor != nil {
@@ -155,6 +192,12 @@ func generateMetrics() Metrics {
 			if *entry.OldPrediction == *entry.ActualColor {
 				oldCorrect++
 			}
+		}
+
+		// Get the age of the prediction.
+		if lastPredictionTime, ok := predictions.GetLastPredictionTime(thingName); ok {
+			age := int(time.Since(lastPredictionTime).Abs().Seconds())
+			entry.PredictionAge = &age
 		}
 
 		return true
@@ -181,6 +224,7 @@ func generateMetrics() Metrics {
 	return Metrics{
 		Entries:       entries,
 		Deviations:    deviations,
+		OldDeviations: oldDeviations,
 		Verifiable:    verifiable,
 		OldVerifiable: oldVerifiable,
 		Correct:       correct,
@@ -202,7 +246,7 @@ func UpdateMetricsFile() {
 	if err != nil {
 		panic(err)
 	}
-	file, err := os.Create(fmt.Sprintf("%s/metrics.json", staticPath))
+	file, err := os.Create(fmt.Sprintf("%s/metrics.json", env.StaticPath))
 	if err != nil {
 		panic(err)
 	}

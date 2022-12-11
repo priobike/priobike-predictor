@@ -28,6 +28,8 @@ func main() {
 	predictions.ConnectPredictionPublisher()
 	// Publish all predictions.
 	predictions.PublishAllBestPredictions()
+	// Publish all predictions periodically.
+	go predictions.PublishAllBestPredictionsPeriodically()
 	// Listen for predictions on the old prediction broker.
 	monitor.ListenForOldPredictions()
 	// Update the prediction comparison once for the dashboard.
@@ -49,18 +51,16 @@ func main() {
 	}
 	observations.CycleSecondCallback = func(
 		thingName string,
-		newCycleStartTime time.Time,
-		newCycleEndTime time.Time,
-		completedPrimarySignalCycle observations.CompletedCycle,
-		completedSignalProgramCycle observations.CompletedCycle,
-		completedCycleSecondCycle observations.CompletedCycle,
-		completedCarDetectorCycle observations.CompletedCycle,
-		completedBikeDetectorCycle observations.CompletedCycle,
+		newCycleStartTime time.Time, newCycleEndTime time.Time,
+		completedPrimarySignalCycle observations.CycleSnapshot,
+		completedSignalProgramCycle observations.CycleSnapshot,
+		completedCycleSecondCycle observations.CycleSnapshot,
+		completedCarDetectorCycle observations.CycleSnapshot,
+		completedBikeDetectorCycle observations.CycleSnapshot,
 	) {
 		_, err := histories.UpdateHistory(
 			thingName,
-			newCycleStartTime,
-			newCycleEndTime,
+			newCycleStartTime, newCycleEndTime,
 			completedPrimarySignalCycle,
 			completedSignalProgramCycle,
 			completedCycleSecondCycle,
