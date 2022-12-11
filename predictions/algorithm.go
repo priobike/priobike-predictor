@@ -9,7 +9,14 @@ import (
 	"time"
 )
 
-const maxClusterDistance = 10 // Seconds
+// The max cluster distance defines how far apart two cycles can be
+// to be considered in the same cluster. Note that with a very
+// high value, two distinct programs will be mixed together. This
+// makes the prediction more robust against noise, but less agile.
+// Thus we need to find a good balance. 8 Seconds is based on the
+// signal group 1893_15, which will occasionally become green for
+// 9 seconds.
+const maxClusterDistance = 8 // Seconds
 
 // An O(n) distance function between two phase arrays.
 func distance(a []byte, b []byte) int {
