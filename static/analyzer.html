@@ -74,6 +74,7 @@
         height: 50vh; 
         width: 100%;
         border-radius: 5px;
+        background-color: #1a1a1a;
       }
     </style>
   </head>
@@ -101,21 +102,14 @@
   </body>
 
   <script>
-    var map = L.map('map').setView([51.505, -0.09], 13);
-    // The currently displayed linestring
-    var line = null;
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        className: 'map-tiles'
-    }).addTo(map);
+    let map;
 
     // If we have a hash, load the traffic light.
     if (window.location.hash) {
       load(window.location.hash.substring(1));
     }
 
-    loadConnections();
+    setTimeout(loadConnections, 1000);
 
     let connections = [];
 
@@ -217,6 +211,11 @@
       window.location.hash = jsonfile;
       // Set the page title
       document.title = 'Analyzer - ' + jsonfile;
+
+      if (map) {
+        map.remove();
+      }
+
       // Set the thing name.
       let thingName = jsonfile.split('-')[0].replace('.json', '');
       const color = stringToColor(thingName);
@@ -424,29 +423,45 @@
             spacer.className = 'mt-1';
             cycles.appendChild(spacer);
           });
-        });
 
-      let url = 'https://tld.iot.hamburg.de/v1.1/Things?%24Filter=name%20eq%20%27' + thingName + '%27&$Expand=Locations';
-      fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          console.log(data)
-          // Add a linestring to the Leaflet map.
-          const geometry = data.value[0].Locations[0].location.geometry;
-          const coordinates = geometry.coordinates; // MultiLineString
-          let latlngs = [];
-          coordinates[1].forEach(c => {
-            latlngs.push([c[1], c[0]]);
-          });
-          if (line) {
-            map.removeLayer(line);
-          }
-          line = L.polyline(latlngs, {
-            color: color, 
-            weight: 5,
-          }).addTo(map);
-          // Zoom the map to the line.
-          map.fitBounds(line.getBounds(), {padding: [100, 100]});
+          // Add a button that loads the map.
+          const mapButton = document.createElement('button');
+          mapButton.className = 'button is-small is-primary';
+          mapButton.innerHTML = 'Load position on map';
+          mapButton.onclick = () => {
+            map = L.map('map').setView([53.55, 10], 13);
+            // The currently displayed linestring
+            var line = null;
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                className: 'map-tiles'
+            }).addTo(map);
+
+            let url = 'https://tld.iot.hamburg.de/v1.1/Things?%24Filter=name%20eq%20%27' + thingName + '%27&$Expand=Locations';
+            fetch(url)
+              .then(response => response.json())
+              .then(data => {
+                console.log(data)
+                // Add a linestring to the Leaflet map.
+                const geometry = data.value[0].Locations[0].location.geometry;
+                const coordinates = geometry.coordinates; // MultiLineString
+                let latlngs = [];
+                coordinates[1].forEach(c => {
+                  latlngs.push([c[1], c[0]]);
+                });
+                if (line) {
+                  map.removeLayer(line);
+                }
+                line = L.polyline(latlngs, {
+                  color: color, 
+                  weight: 5,
+                }).addTo(map);
+                // Zoom the map to the line.
+                map.fitBounds(line.getBounds(), {padding: [100, 100]});
+              });
+          };
+          cycles.appendChild(mapButton);
         });
     }
   </script>
