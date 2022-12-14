@@ -11,6 +11,11 @@ import (
 	"sync/atomic"
 )
 
+// The maximum length of the history files.
+// A longer history will be more robust for statistical evaluation.
+// A shorter history will react faster to changes in the program behavior.
+const maxHistoryLength = 10
+
 // The current histories by their file path.
 // The cache is used to speedup access to the history files.
 var cache = sync.Map{}

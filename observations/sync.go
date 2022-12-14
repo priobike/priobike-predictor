@@ -9,7 +9,6 @@ import (
 	"predictor/env"
 	"predictor/log"
 	"sync"
-	"time"
 )
 
 func prefetchMostRecentObservationsPage(page int) (more bool) {
@@ -65,15 +64,6 @@ func prefetchMostRecentObservationsPage(page int) (more bool) {
 		switch expandedDatastream.Properties.LayerName {
 		// At the moment, we only care about signal programs.
 		case "signal_program":
-			// Throw away program observations that were made before 0:00.
-			// Note that this also means that we throw away observations that
-			// were made before 0:00 when predictions are made at 0:00. This
-			// is to prevent the predictions from being based on program
-			// observations that are far in the past.
-			today0OClock := time.Now().Truncate(24 * time.Hour)
-			if o.PhenomenonTime.Before(today0OClock) {
-				continue
-			}
 			cycle, _ := signalProgramCycles.LoadOrStore(expandedDatastream.Thing.Name, &Cycle{})
 			cycle.(*Cycle).add(o)
 		default:

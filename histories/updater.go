@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-// The maximum length of the history files.
-// A longer history will be more robust for statistical evaluation.
-// A shorter history will react faster to changes in the program behavior.
-const maxHistoryLength = 30
-
 var requested uint64 = 0
 var canceled uint64 = 0
 var processed uint64 = 0
