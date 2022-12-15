@@ -54,7 +54,8 @@ A tool for comparing the prediction with the actual state and the old prediction
 
 A tool for comparing the prediction with the history of cycles of each signal group and program. Accessible under http://localhost/analyzer.html.
 
-![Screenshot 2022-12-11 at 18 05 40](https://user-images.githubusercontent.com/27271818/206917826-998f8406-f8d9-4ed9-86d5-643aa5aa4672.png)
+<img width="1580" alt="Screenshot 2022-12-15 at 10 53 25" src="https://user-images.githubusercontent.com/27271818/207828563-7578ce26-cd05-47fd-9ad6-9600c104c1b0.png">
+
 
 #### Monitoring Script
 
