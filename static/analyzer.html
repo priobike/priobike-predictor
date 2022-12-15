@@ -219,8 +219,9 @@
       const color = stringToColor(thingName);
       document.getElementById('selected-light').innerHTML = 
         '<span class="tag mx-2 has-text-white" style="background-color: ' + color + ';">' + thingName + '</span>';
+      const command = 'python3 observe.py -name ' + thingName;
       document.getElementById('selected-light').innerHTML += 
-        '<span class="tag mx-2 is-black"> ' + 'python3 observe.py -name ' + thingName; + ' </span>';
+        `<button onclick="navigator.clipboard.writeText('${command}');" class="button mx-2 is-small is-black"> ${command} (Click here to copy)</button>`;
 
       const cycles = document.getElementById('cycles');
       cycles.innerHTML = '';
