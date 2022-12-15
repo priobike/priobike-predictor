@@ -17,6 +17,7 @@ type Prediction struct {
 
 // Check if a prediction equals another prediction.
 func (p Prediction) Equals(other Prediction) bool {
+	// First, compare things that can be compared quickly.
 	if p.ThingName != other.ThingName {
 		return false
 	}
@@ -26,6 +27,18 @@ func (p Prediction) Equals(other Prediction) bool {
 	if len(p.Then) != len(other.Then) {
 		return false
 	}
+	if p.ReferenceTime != other.ReferenceTime {
+		return false
+	}
+	if p.ProgramId == nil && other.ProgramId != nil {
+		return false
+	}
+	if p.ProgramId != nil && other.ProgramId == nil {
+		return false
+	}
+	if p.ProgramId != nil && other.ProgramId != nil && *p.ProgramId != *other.ProgramId {
+		return false
+	}
 	if !bytes.Equal(p.Now, other.Now) {
 		return false
 	}
@@ -33,11 +46,5 @@ func (p Prediction) Equals(other Prediction) bool {
 		return false
 	}
 	// Don't compare the quality, to speed up the comparison.
-	if p.ReferenceTime != other.ReferenceTime {
-		return false
-	}
-	if p.ProgramId != other.ProgramId {
-		return false
-	}
 	return true
 }
