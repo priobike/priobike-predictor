@@ -25,7 +25,7 @@ func main() {
 	// Run a cleanup periodically.
 	go observations.RunCleanupPeriodically()
 	// Connect the prediction publisher.
-	predictions.ConnectPredictionPublisher()
+	predictions.ConnectMQTTClient()
 	// Publish all predictions.
 	predictions.PublishAllBestPredictions()
 	// Publish all predictions periodically.

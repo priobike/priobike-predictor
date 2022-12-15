@@ -1,10 +1,12 @@
 package predictions
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"predictor/env"
 	"predictor/log"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -13,7 +15,32 @@ import (
 // The mqtt client.
 var client mqtt.Client
 
-func ConnectPredictionPublisher() {
+// The lock used for publishing to the prediction mqtt broker.
+var publishLock = &sync.Mutex{}
+
+// Publishes a prediction to the prediction MQTT broker.
+func publish(p Prediction) error {
+	// Acquire the lock.
+	publishLock.Lock()
+	defer publishLock.Unlock()
+
+	// Publish the prediction
+	topic := fmt.Sprintf("prediction/%s", p.ThingName)
+	// Serialize the prediction to json.
+	data, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	dataStr := string(data)
+	// Publish the prediction.
+	if pub := client.Publish(topic, 2, true, dataStr); pub.Wait() && pub.Error() != nil {
+		log.Error.Println("Failed to publish prediction:", pub.Error())
+		return pub.Error()
+	}
+	return nil
+}
+
+func ConnectMQTTClient() {
 	log.Info.Println("Connecting to prediction mqtt broker at :", env.PredictionMqttUrl)
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(env.PredictionMqttUrl)
@@ -35,6 +62,7 @@ func ConnectPredictionPublisher() {
 	log.Info.Println("Using client id:", clientID)
 	opts.SetClientID(clientID)
 	opts.SetOrderMatters(false)
+	opts.SetProtocolVersion(4)
 	opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {
 		log.Warning.Println("Received unexpected message on topic:", msg.Topic())
 	})

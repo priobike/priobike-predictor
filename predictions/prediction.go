@@ -41,22 +41,3 @@ func (p Prediction) Equals(other Prediction) bool {
 	}
 	return true
 }
-
-// Publishes a prediction to the prediction MQTT broker.
-func (p Prediction) publish() error {
-	// // Publish the prediction
-	// topic := p.ThingName
-	// // Serialize the prediction to json.
-	// data, err := json.Marshal(p)
-	// if err != nil {
-	// 	return err
-	// }
-	// // Log the prediction.
-	// log.Info.Println("Publishing prediction:", string(data))
-	// // Publish the prediction.
-	// if pub := client.Publish(topic, 2, true, data); pub.Wait() && pub.Error() != nil {
-	// 	log.Error.Println("Failed to publish prediction:", pub.Error())
-	// 	return pub.Error()
-	// }
-	return nil
-}

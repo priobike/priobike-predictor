@@ -89,7 +89,7 @@ func PublishBestPrediction(thingName string) {
 		return
 	}
 
-	err = prediction.publish()
+	err = publish(prediction)
 	if err != nil {
 		log.Error.Printf("Could not publish prediction to MQTT: %s", err)
 		atomic.AddUint64(&canceled, 1)
@@ -123,6 +123,6 @@ func PublishAllBestPredictions() {
 func PublishAllBestPredictionsPeriodically() {
 	for {
 		PublishAllBestPredictions()
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(5 * time.Second)
 	}
 }

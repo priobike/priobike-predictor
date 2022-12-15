@@ -84,11 +84,6 @@ func best(clustered [][][]byte, current []byte) [][]byte {
 		if clusterDistance < bestDistance {
 			bestDistance = clusterDistance
 			bestCluster = cluster
-		} else if clusterDistance == bestDistance {
-			// If the distance is the same, we prefer the cluster with the most rows.
-			if len(cluster) > len(bestCluster) {
-				bestCluster = cluster
-			}
 		}
 	}
 	return bestCluster
