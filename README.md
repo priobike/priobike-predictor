@@ -55,3 +55,13 @@ A tool for comparing the prediction with the actual state and the old prediction
 A tool for comparing the prediction with the history of cycles of each signal group and program. Accessible under http://localhost/analyzer.html.
 
 ![Screenshot 2022-12-11 at 18 05 40](https://user-images.githubusercontent.com/27271818/206917826-998f8406-f8d9-4ed9-86d5-643aa5aa4672.png)
+
+#### Monitoring Script
+
+Requires `mosquitto_sub` to be installed. Example:
+```
+python3 observe.py -name 96_22
+```
+![Screenshot 2022-12-15 at 10 41 58](https://user-images.githubusercontent.com/27271818/207826493-a0a1af0e-d047-4308-a031-92865e313489.png)
+
+
