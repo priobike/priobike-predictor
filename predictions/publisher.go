@@ -1,10 +1,6 @@
 package predictions
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"predictor/env"
 	"predictor/log"
 	"predictor/things"
 	"sync"
@@ -60,33 +56,12 @@ func PublishBestPrediction(thingName string) {
 
 	// Check if this prediction equals the last prediction.
 	// This avoids writing the same prediction (costly operation)
-	// multiple times to the file system and the MQTT broker.
+	// multiple times to the MQTT broker.
 	if lastPrediction, ok := GetCurrentPrediction(thingName); ok {
 		if prediction.Equals(lastPrediction) {
 			atomic.AddUint64(&canceled, 1)
 			return
 		}
-	}
-
-	// Write the prediction to a file.
-	path := fmt.Sprintf("%s/predictions/%s.json", env.StaticPath, thingName)
-	if prediction.ProgramId != nil {
-		path = fmt.Sprintf("%s/predictions/%s-P%d.json", env.StaticPath, thingName, *prediction.ProgramId)
-	}
-
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Error.Printf("Could not open file %s: %s", path, err)
-		atomic.AddUint64(&canceled, 1)
-		return
-	}
-	defer file.Close()
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(prediction)
-	if err != nil {
-		log.Error.Printf("Could not write to file %s: %s", path, err)
-		atomic.AddUint64(&canceled, 1)
-		return
 	}
 
 	err = publish(prediction)

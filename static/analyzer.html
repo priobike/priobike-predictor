@@ -29,7 +29,7 @@
         overflow-y: scroll;
       }
 
-      #cycles, #prediction {
+      #cycles {
         overflow-x: scroll;
         white-space: nowrap;
       }
@@ -91,8 +91,6 @@
             <span class="has-text-white" id="selected-light"></span>
           </div>
           <div class="container mb-2" id="button"></div>
-          <div class="container">Prediction</div>
-          <div class="container mb-5" id="prediction"></div>
           <div class="container">History</div>
           <div class="container mb-5" id="cycles"></div>
           <div id="map"></div>
@@ -223,74 +221,6 @@
         '<span class="tag mx-2 has-text-white" style="background-color: ' + color + ';">' + thingName + '</span>';
       document.getElementById('selected-light').innerHTML += 
         '<span class="tag mx-2 is-black"> ' + 'python3 observe.py -name ' + thingName; + ' </span>';
-
-      // Load the prediction
-      const prediction = document.getElementById('prediction');
-      prediction.innerHTML = '';
-      fetch('predictions/' + jsonfile)
-        .then(response => response.json())
-        .then(data => {
-            const start = new Date(data.referenceTime);
-
-            const programLabel = document.createElement('label');
-            programLabel.className = 'label has-text-white';
-            if (data.programId) {
-              programLabel.innerHTML = 'P ' + data.programId;
-            } else {
-              programLabel.innerHTML = 'P -';
-            }
-            programLabel.style.display = 'inline-block';
-            programLabel.style.marginRight = '10px';
-            programLabel.style.width = '25px'; // Align the phases.
-            prediction.appendChild(programLabel);
-
-            const startTimeLabel = document.createElement('label');
-            startTimeLabel.className = 'label has-text-white';
-            startTimeLabel.innerHTML = data.referenceTime;
-            startTimeLabel.style.display = 'inline-block';
-            startTimeLabel.style.marginRight = '10px';
-            startTimeLabel.style.width = '190px'; // Align the phases.
-            prediction.appendChild(startTimeLabel);
-
-            // Traverse each second from start to end.
-            function decodeBase64(str) {
-              return Uint8Array.from(atob(str), c => c.charCodeAt(0))
-            }
-            const phases = [...decodeBase64(data.now), ...decodeBase64(data.then)]
-            const qualities = [...decodeBase64(data.nowQuality), ...decodeBase64(data.thenQuality)]
-            for (let i = 0; i < phases.length; i++) {
-              const phase = phases[i];
-              const quality = qualities[i];
-              // Create a div for the state.
-              const div = document.createElement('div');
-              div.style.width = '6px';
-              div.style.height = '32px';
-              div.style.marginRight = '1px';
-              div.style.borderRadius = '3px';
-              div.style.display = 'inline-block';
-              div.style.lineHeight = '0px';
-              div.style.whiteSpace = 'normal';
-
-              const phaseDiv = document.createElement('div');
-              phaseDiv.style.width = '6px';
-              phaseDiv.style.height = '14px';
-              phaseDiv.style.borderRadius = '3px';
-              phaseDiv.style.marginTop = '1px';
-              phaseDiv.style.display = 'inline-block';
-              if (phase) {
-                phaseDiv.className = 'state-' + phase;
-              } else {
-                phaseDiv.className = 'state-unknown';
-              }
-              if (quality) {
-                phaseDiv.style.opacity = quality / 100;
-              } else {
-                phaseDiv.style.opacity = 1;
-              }
-              div.appendChild(phaseDiv);
-              prediction.appendChild(div);
-            }
-        });
 
       const cycles = document.getElementById('cycles');
       cycles.innerHTML = '';
