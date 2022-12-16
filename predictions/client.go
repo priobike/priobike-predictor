@@ -67,6 +67,13 @@ func ConnectMQTTClient() {
 		log.Warning.Println("Received unexpected message on topic:", msg.Topic())
 	})
 
+	if env.PredictionMqttUsername != "" {
+		opts.SetUsername(env.PredictionMqttUsername)
+	}
+	if env.PredictionMqttPassword != "" {
+		opts.SetPassword(env.PredictionMqttPassword)
+	}
+
 	client = mqtt.NewClient(opts)
 	if conn := client.Connect(); conn.Wait() && conn.Error() != nil {
 		panic(conn.Error())
