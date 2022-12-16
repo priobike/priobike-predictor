@@ -8,14 +8,14 @@ services:
     env_file: .env
     volumes:
       # Mount a volume under the shared nginx dir to serve static files
-      - ./static:/usr/share/nginx/html/
+      - predictor_staticfiles:
     restart: unless-stopped
   predictor-nginx:
     image: nginx:latest
     hostname: predictor-nginx
     volumes:
       # Mount the same volume to serve static files
-      - ./static:/usr/share/nginx/html/:ro
+      - predictor_staticfiles:/usr/share/nginx/html/:ro
     ports:
       - 80:80
     restart: unless-stopped
@@ -56,4 +56,6 @@ services:
 volumes:
   prometheus_data:
     name: prometheus-data
+  predictor_staticfiles:
+    name: predictor-staticfiles
   

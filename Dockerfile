@@ -11,6 +11,9 @@ FROM alpine as runner
 WORKDIR /app
 
 COPY --from=builder /app/main .
-COPY static ./static
 
-CMD ["./main"]
+COPY run-prod.sh .
+COPY static/ ./static/
+
+VOLUME /usr/share/nginx/html/
+CMD "./run-prod.sh"
