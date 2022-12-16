@@ -190,11 +190,12 @@
                         document.getElementById('all').appendChild(container);
                     }
                     let nameText;
+                    let path = window.location.pathname.replace("monitor.html", "analyzer.html");
                     if (state.program) {
-                      container.href = '/analyzer.html#' + state.name + '-P' + state.program + '.json';
+                      container.href = path + '#' + state.name + '-P' + state.program + '.json';
                       nameText = state.name + '-P' + state.program;
                     } else {
-                      container.href = '/analyzer.html#' + state.name + '.json';
+                      container.href = path + '#' + state.name + '.json';
                       nameText = state.name;
                     }
                     if (state.age) {
