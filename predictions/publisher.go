@@ -35,9 +35,9 @@ func GetLastPredictionTime(thingName string) (time.Time, bool) {
 	return t.(time.Time), true
 }
 
-var requested uint64 = 0
-var canceled uint64 = 0
-var processed uint64 = 0
+var PredictionsChecked uint64 = 0
+var PredictionsDiscarded uint64 = 0
+var PredictionsPublished uint64 = 0
 
 // Build a prediction for a given history.
 func PublishBestPrediction(thingName string) {
@@ -46,11 +46,11 @@ func PublishBestPrediction(thingName string) {
 	lock.(*sync.Mutex).Lock()
 	defer lock.(*sync.Mutex).Unlock()
 
-	atomic.AddUint64(&requested, 1)
+	atomic.AddUint64(&PredictionsChecked, 1)
 
 	prediction, err := predict(thingName)
 	if err != nil {
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&PredictionsDiscarded, 1)
 		return
 	}
 
@@ -59,7 +59,7 @@ func PublishBestPrediction(thingName string) {
 	// multiple times to the MQTT broker.
 	if lastPrediction, ok := GetCurrentPrediction(thingName); ok {
 		if prediction.Equals(lastPrediction) {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&PredictionsDiscarded, 1)
 			return
 		}
 	}
@@ -67,16 +67,19 @@ func PublishBestPrediction(thingName string) {
 	err = publish(prediction)
 	if err != nil {
 		log.Error.Printf("Could not publish prediction to MQTT: %s", err)
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&PredictionsDiscarded, 1)
 		return
 	}
 
 	current.Store(prediction.ThingName, prediction)
 	times.Store(thingName, time.Now())
 
-	atomic.AddUint64(&processed, 1)
-	if (processed%1000) == 0 && processed > 0 {
-		log.Info.Printf("Predictions requested %d, processed %d, canceled %d", requested, processed, canceled)
+	atomic.AddUint64(&PredictionsPublished, 1)
+	if (PredictionsPublished%1000) == 0 && PredictionsPublished > 0 {
+		log.Info.Printf(
+			"Predictions requested %d, published %d, canceled %d",
+			PredictionsChecked, PredictionsPublished, PredictionsDiscarded,
+		)
 	}
 }
 

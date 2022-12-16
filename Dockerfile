@@ -1,4 +1,4 @@
-FROM golang:1.19.1-alpine
+FROM golang:alpine as builder
 
 WORKDIR /app
 
@@ -6,4 +6,11 @@ COPY . .
 RUN go mod download
 RUN go build -o main .
 
-CMD ["/app/main"]
+FROM alpine as runner
+
+WORKDIR /app
+
+COPY --from=builder /app/main .
+COPY static ./static
+
+CMD ["./main"]

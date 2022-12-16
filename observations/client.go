@@ -21,26 +21,26 @@ import (
 const observationQoS = 1
 
 // Received messages by their topic.
-var receivedMessages = make(map[string]int)
+var ObservationsReceivedByTopic = make(map[string]uint64)
 
-// A lock for receivedMessages.
-var receivedMessagesLock = &sync.RWMutex{}
+// The lock for the map.
+var ObservationsReceivedByTopicLock = &sync.RWMutex{}
 
 // The number of processed messages, for logging purposes.
-var received uint64 = 0
-var canceled uint64 = 0
-var processed uint64 = 0
+var ObservationsReceived uint64 = 0
+var ObservationsDiscarded uint64 = 0
+var ObservationsProcessed uint64 = 0
 
 // Check out the number of received messages periodically.
 func CheckReceivedMessagesPeriodically() {
 	for {
-		receivedNow := received
-		canceledNow := canceled
-		processedNow := processed
+		receivedNow := ObservationsReceived
+		canceledNow := ObservationsDiscarded
+		processedNow := ObservationsProcessed
 		time.Sleep(60 * time.Second)
-		receivedThen := received
-		canceledThen := canceled
-		processedThen := processed
+		receivedThen := ObservationsReceived
+		canceledThen := ObservationsDiscarded
+		processedThen := ObservationsProcessed
 		dReceived := receivedThen - receivedNow
 		dCanceled := canceledThen - canceledNow
 		dProcessed := processedThen - processedNow
@@ -49,18 +49,17 @@ func CheckReceivedMessagesPeriodically() {
 			panic("No messages received in the last 60 seconds")
 		}
 		log.Info.Printf("Received %d observations in the last 60 seconds. (%d processed, %d canceled)", dReceived, dProcessed, dCanceled)
-		receivedMessagesLock.Lock()
-		for dsType, count := range receivedMessages {
+		ObservationsReceivedByTopicLock.RLock()
+		for dsType, count := range ObservationsReceivedByTopic {
 			log.Info.Printf("  - Received %d observations for `%s`.", count, dsType)
 		}
-		receivedMessages = make(map[string]int)
-		receivedMessagesLock.Unlock()
+		ObservationsReceivedByTopicLock.RUnlock()
 	}
 }
 
 // Process a message.
 func processMessage(msg mqtt.Message) {
-	atomic.AddUint64(&received, 1)
+	atomic.AddUint64(&ObservationsReceived, 1)
 
 	// Add the observation to the correct map.
 	topic := msg.Topic()
@@ -68,23 +67,24 @@ func processMessage(msg mqtt.Message) {
 	// Check if the topic should be processed.
 	dsType, ok := things.DatastreamMqttTopics.Load(topic)
 	if !ok {
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&ObservationsDiscarded, 1)
 		return
 	}
 
-	receivedMessagesLock.Lock()
-	receivedMessages[dsType.(string)]++
-	receivedMessagesLock.Unlock()
+	// Increment the number of received messages.
+	ObservationsReceivedByTopicLock.Lock()
+	ObservationsReceivedByTopic[dsType.(string)]++
+	ObservationsReceivedByTopicLock.Unlock()
 
 	var observation Observation
 	if err := json.Unmarshal(msg.Payload(), &observation); err != nil {
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&ObservationsDiscarded, 1)
 		return
 	}
 
 	err := validateObservation(observation, dsType.(string))
 	if err != nil {
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&ObservationsDiscarded, 1)
 		log.Warning.Printf("Invalid observation: %s", err)
 		return
 	}
@@ -93,7 +93,7 @@ func processMessage(msg mqtt.Message) {
 	case "primary_signal":
 		thingName, ok := things.PrimarySignalDatastreams.Load(topic)
 		if !ok {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ := primarySignalCycles.LoadOrStore(thingName, &Cycle{})
@@ -102,7 +102,7 @@ func processMessage(msg mqtt.Message) {
 	case "signal_program":
 		thingName, ok := things.SignalProgramDatastreams.Load(topic)
 		if !ok {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ := signalProgramCycles.LoadOrStore(thingName, &Cycle{})
@@ -111,7 +111,7 @@ func processMessage(msg mqtt.Message) {
 	case "detector_car":
 		thingName, ok := things.CarDetectorDatastreams.Load(topic)
 		if !ok {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ := carDetectorCycles.LoadOrStore(thingName, &Cycle{})
@@ -120,7 +120,7 @@ func processMessage(msg mqtt.Message) {
 	case "detector_bike":
 		thingName, ok := things.BikeDetectorDatastreams.Load(topic)
 		if !ok {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ := bikeDetectorCycles.LoadOrStore(thingName, &Cycle{})
@@ -129,7 +129,7 @@ func processMessage(msg mqtt.Message) {
 	case "cycle_second":
 		thingName, ok := things.CycleSecondDatastreams.Load(topic)
 		if !ok {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ := cycleSecondCycles.LoadOrStore(thingName, &Cycle{})
@@ -166,31 +166,31 @@ func processMessage(msg mqtt.Message) {
 		// Complete all associated cycles.
 		completedCycleSecondCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ = primarySignalCycles.LoadOrStore(thingName, &Cycle{})
 		completedPrimarySignalCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ = signalProgramCycles.LoadOrStore(thingName, &Cycle{})
 		completedSignalProgramCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ = carDetectorCycles.LoadOrStore(thingName, &Cycle{})
 		completedCarDetectorCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 		cycle, _ = bikeDetectorCycles.LoadOrStore(thingName, &Cycle{})
 		completedBikeDetectorCycle, err := cycle.(*Cycle).complete(cycleStartTime, cycleEndTime)
 		if err != nil {
-			atomic.AddUint64(&canceled, 1)
+			atomic.AddUint64(&ObservationsDiscarded, 1)
 			return
 		}
 
@@ -205,7 +205,7 @@ func processMessage(msg mqtt.Message) {
 		)
 	}
 
-	atomic.AddUint64(&processed, 1)
+	atomic.AddUint64(&ObservationsProcessed, 1)
 }
 
 // Listen for new observations via mqtt.

@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-var requested uint64 = 0
-var canceled uint64 = 0
-var processed uint64 = 0
+var HistoryUpdatesRequested uint64 = 0
+var HistoryUpdatesDiscarded uint64 = 0
+var HistoryUpdatesProcessed uint64 = 0
 
 // Update the history file for the given thing.
 func UpdateHistory(
@@ -25,11 +25,14 @@ func UpdateHistory(
 	completedCarDetectorCycle observations.CycleSnapshot,
 	completedBikeDetectorCycle observations.CycleSnapshot,
 ) (History, error) {
-	if (requested%1000) == 0 && requested > 0 {
-		log.Info.Printf("History file updates requested %d, processed %d, canceled %d", requested, processed, canceled)
+	if (HistoryUpdatesRequested%1000) == 0 && HistoryUpdatesRequested > 0 {
+		log.Info.Printf(
+			"History file updates requested %d, processed %d, canceled %d",
+			HistoryUpdatesRequested, HistoryUpdatesProcessed, HistoryUpdatesDiscarded,
+		)
 	}
 
-	atomic.AddUint64(&requested, 1)
+	atomic.AddUint64(&HistoryUpdatesRequested, 1)
 
 	// Reconstruct the signal values in the cycle, from StartTime to EndTime.
 	phases := []HistoryPhaseEvent{}
@@ -60,7 +63,7 @@ func UpdateHistory(
 	})
 	err := validatePhases(newCycleStartTime, newCycleEndTime, phases)
 	if err != nil {
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&HistoryUpdatesDiscarded, 1)
 		return History{}, fmt.Errorf("phase validity check failed: %v", err)
 	}
 
@@ -146,10 +149,10 @@ func UpdateHistory(
 
 	history, err := appendToHistoryFile(path, *historyCycle)
 	if err != nil {
-		atomic.AddUint64(&canceled, 1)
+		atomic.AddUint64(&HistoryUpdatesDiscarded, 1)
 		return History{}, err
 	}
 
-	atomic.AddUint64(&processed, 1)
+	atomic.AddUint64(&HistoryUpdatesProcessed, 1)
 	return history, nil
 }

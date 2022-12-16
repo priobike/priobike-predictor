@@ -25,19 +25,11 @@
         height: 4rem;
       }
 
-      .new-wins {
-        border: 1px solid rgb(0, 157, 255);
-      }
-
-      .old-wins {
-        border: 1px solid rgb(255, 47, 248);
-      }
-
-      .both-win {
+      .win {
         border: 1px solid rgb(0, 0, 0);
       }
 
-      .both-lose {
+      .lose {
         border: 1px solid rgb(255, 255, 0);
       }
 
@@ -99,19 +91,16 @@
           <h1 class="title has-text-white pt-3">SG Monitor</h1>
           <h1 class="subtitle has-text-white pt-3" id="number"></h1> 
         </div>
-        <div class="column is-4">
+        <div class="column is-8">
           <canvas id="chart"></canvas>
-        </div>
-        <div class="column is-4">
-          <canvas id="chart-old"></canvas>
-        </div>  
+        </div> 
       </div>
     </section>
     <div class="container pt-6" id="all"></div>  
   </body>
 
   <script>
-    var chart, chartOld;
+    var chart;
 
     // Every second, get the data from the API.
     setInterval(() => {
@@ -122,9 +111,7 @@
                 document.getElementById('number').innerHTML = 
                   `${metrics.entries.length} <small>signal groups synced</small> <br>` +
                   `${metrics.verifiable} <small>send data and have a prediction</small> <br>` +
-                  `${metrics.oldVerifiable} <small>send data and have a prediction (old service)</small> <br>` +
                   `${Math.round(10000 * metrics.correct / metrics.verifiable) / 100}% <small>accuracy</small> <br>` +
-                  `${Math.round(10000 * metrics.oldCorrect / metrics.oldVerifiable) / 100}% <small>accuracy (old service)</small> <br>` +
                   `${Math.round(100 * metrics.meanDev) / 100}s <small>mean deviation</small> <br>` +
                   `${Math.round(100 * metrics.meanMsgDelay) / 100}s <small>mean message delay</small> <br>`;
 
@@ -170,55 +157,12 @@
                   chart.update();
                 }
 
-                // Create the chart
-                var ctxOld = document.getElementById('chart-old').getContext('2d');
-                // If the old chart exists, set the metrics.
-                if (!chartOld) {
-                  chartOld = new Chart(ctxOld, {
-                      type: 'bar',
-                      data: {
-                          datasets: [{
-                              label: 'Deviation of predictions in seconds (Old prediction service)',
-                              backgroundColor: Object.keys(metrics.oldDeviations).map(key => {
-                                if (key > 0) {
-                                  return 'rgb(255, 255, 0)';
-                                } else {
-                                  return 'rgb(255, 255, 255)';
-                                }
-                              }),
-                              borderColor: 'rgb(255, 255, 255)',
-                              data: metrics.oldDeviations
-                          }]
-                      },
-                      options: {
-                          scales: {
-                              y: {
-                                  beginAtZero: true,
-                                  max: metrics.entries.length,
-                              },
-                              x: {
-                                  beginAtZero: true,
-                              }
-                          },
-                          animation: {
-                            duration: 0
-                          },
-                          responsive: true,
-                          maintainAspectRatio: false
-                      }
-                  });
-                } else {
-                  chartOld.data.datasets[0].data = metrics.oldDeviations;
-                  chartOld.update();
-                }
-
                 for (const state of metrics.entries) {
                     let container = document.getElementById(state.name);
                     let actualEle = document.getElementById(state.name + '-actual');
                     let predictedEle = document.getElementById(state.name + '-predicted');
-                    let oldEle = document.getElementById(state.name + '-old');
                     let nameEle = document.getElementById(state.name + '-name');
-                    if (!actualEle && !predictedEle && !oldEle) {
+                    if (!actualEle && !predictedEle) {
                         container = document.createElement('a');
                         container.id = state.name;
                         container.style.display = 'inline-block';
@@ -237,11 +181,6 @@
                         predictedEle.id = state.name + '-predicted';
                         predictedEle.innerHTML = 'P';
                         container.appendChild(predictedEle);
-
-                        oldEle = document.createElement('div');
-                        oldEle.id = state.name + '-old';
-                        oldEle.innerHTML = 'O';
-                        container.appendChild(oldEle);
 
                         nameEle = document.createElement('div');
                         nameEle.id = state.name + '-name';
@@ -264,21 +203,16 @@
                       nameText += '<br>(n/a ago)';
                     }
                     nameEle.innerHTML = nameText;
-                    if (state.actual === state.predicted && state.actual !== state.old) {
-                        container.className = 'comparison new-wins';
-                    } else if (state.actual !== state.predicted && state.actual === state.old) {
-                        container.className = 'comparison old-wins';
-                    } else if (state.actual === state.predicted && state.actual === state.old) {
-                        container.className = 'comparison both-win';
+                    if (state.actual === state.predicted) {
+                        container.className = 'comparison win';
                     } else {
-                        container.className = 'comparison both-lose';
+                        container.className = 'comparison lose';
                     }
                     if (state.quality) {
                       predictedEle.style.opacity = state.quality / 100;
                     }
                     predictedEle.className = 'state-circle state-' + state.predicted;
                     actualEle.className = 'state-circle state-' + state.actual;
-                    oldEle.className = 'state-circle state-' + state.old;
                 }
             });
     }, 1000);

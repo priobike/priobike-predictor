@@ -8,7 +8,6 @@ import (
 	"predictor/log"
 	"predictor/observations"
 	"sync"
-	"sync/atomic"
 )
 
 // The maximum length of the history files.
@@ -43,7 +42,6 @@ func appendToHistoryFile(path string, newCycle HistoryCycle) (History, error) {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Error.Println(err)
-		atomic.AddUint64(&canceled, 1)
 		return History{}, err
 	}
 	defer file.Close()
@@ -51,7 +49,6 @@ func appendToHistoryFile(path string, newCycle HistoryCycle) (History, error) {
 	err = encoder.Encode(history)
 	if err != nil {
 		log.Error.Println(err)
-		atomic.AddUint64(&canceled, 1)
 		return History{}, err
 	}
 

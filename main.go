@@ -30,12 +30,10 @@ func main() {
 	predictions.PublishAllBestPredictions()
 	// Publish all predictions periodically.
 	go predictions.PublishAllBestPredictionsPeriodically()
-	// Listen for predictions on the old prediction broker.
-	monitor.ListenForOldPredictions()
-	// Update the prediction comparison once for the dashboard.
-	monitor.UpdateMetricsFile()
-	// Update the prediction comparison periodically for the dashboard.
-	go monitor.UpdateMetricsFilePeriodically()
+	// Update the prediction metrics once for the dashboard.
+	monitor.UpdateMetricsFiles()
+	// Update the prediction metrics periodically for the dashboard.
+	go monitor.UpdateMetricsFilesPeriodically()
 	// Bind the callbacks.
 	observations.PrimarySignalCallback = func(thingName string) {
 		predictions.PublishBestPrediction(thingName)

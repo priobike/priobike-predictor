@@ -1,32 +1,59 @@
 version: "3.9"
 services:
-  app:
+  # Predictor stack
+  predictor:
     build:
       dockerfile: Dockerfile
       context: .
     env_file: .env
     volumes:
       # Mount a volume under the shared nginx dir to serve static files
-      - ./static/:/usr/share/nginx/html/
+      - ./static:/usr/share/nginx/html/
     restart: unless-stopped
-  nginx:
+  predictor-nginx:
     image: nginx:latest
+    hostname: predictor-nginx
     volumes:
       # Mount the same volume to serve static files
-      - ./static/:/usr/share/nginx/html/:ro
+      - ./static:/usr/share/nginx/html/:ro
     ports:
-      - "80:80"
-    depends_on:
-      - app
+      - 80:80
     restart: unless-stopped
-  mosquitto:
+  predictor-mosquitto:
     image: eclipse-mosquitto:latest
-    hostname: mosquitto
+    hostname: predictor-mosquitto
     ports:
-      - "1883:1883" # TCP
-      - "8883:8883" # Websockets
+      - 1883:1883 # TCP
+      - 8883:8883 # Websockets
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     command: mosquitto -c /mosquitto/config/mosquitto.conf
     restart: unless-stopped
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:v2.32.1
+    hostname: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      # Mount a data volume to persist data between container restarts
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml' # Prometheus configuration
+      - '--storage.tsdb.retention.time=1y' # Keep data for 1 year
+      - '--storage.tsdb.path=/prometheus' # Store data in /prometheus
+  grafana:
+    image: grafana/grafana:9.1.8
+    volumes:
+      # Mount the provisioning config to the container
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    env_file:
+      # Runtime environment variables
+      - grafana/.env
+    ports:
+      - 3000:3000
+
+volumes:
+  prometheus_data:
+    name: prometheus-data
   

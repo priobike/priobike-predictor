@@ -1,13 +1,12 @@
 import argparse
 import base64
+import datetime
 import json
 import random
 import subprocess
 import sys
 import threading
 import time
-import datetime
-import difflib
 
 import requests
 
