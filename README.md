@@ -43,26 +43,32 @@ The prediction is published to another MQTT broker, where it can be accessed by 
 
 The prediction is checked against the actual state of the signal and we calculate metrics that are accessible from a monitoring tool (e.g. Prometheus/Grafana). Additionally, we provide debugging tools:
 
+#### Grafana Dashboard
+
+Available under http://localhost:3000
+
+![Screenshot 2022-12-16 at 12 12 04](https://user-images.githubusercontent.com/27271818/208086158-32fde349-991e-45ea-a894-c8f09b5f5ec7.png)
+
 #### Signal Group Monitor
 
 A tool for comparing the prediction with the actual state and the old prediction algorithm. Accessible under http://localhost/monitor.html.
 
-![Screenshot 2022-12-11 at 18 06 59](https://user-images.githubusercontent.com/27271818/206917889-461f945e-ab4f-496e-b95a-97bc83d5561d.png)
-
+![Screenshot 2022-12-16 at 12 13 47](https://user-images.githubusercontent.com/27271818/208086442-3828b23d-3baa-46bd-868e-89c9282cd41b.png)
 
 #### Signal Group Analyzer
 
 A tool for comparing the prediction with the history of cycles of each signal group and program. Accessible under http://localhost/analyzer.html.
 
-<img width="1580" alt="Screenshot 2022-12-15 at 10 53 25" src="https://user-images.githubusercontent.com/27271818/207828563-7578ce26-cd05-47fd-9ad6-9600c104c1b0.png">
-
+![Screenshot 2022-12-16 at 12 13 04](https://user-images.githubusercontent.com/27271818/208086301-73316182-982f-4563-a723-5183fc0992bd.png)
 
 #### Monitoring Script
 
 Requires `mosquitto_sub` to be installed. Example:
+
 ```
 python3 observe.py -name 96_22
 ```
+
 ![Screenshot 2022-12-15 at 10 41 58](https://user-images.githubusercontent.com/27271818/207826493-a0a1af0e-d047-4308-a031-92865e313489.png)
 
 
