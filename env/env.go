@@ -25,7 +25,7 @@ var StaticPath = loadRequired("STATIC_PATH")
 var SensorThingsBaseUrl = loadRequired("SENSORTHINGS_URL")
 
 // The URL to the observation MQTT broker from the environment variable.
-var SensorThingsObservationMqttUrl = loadRequired("MQTT_URL")
+var SensorThingsObservationMqttUrl = loadRequired("SENSORTHINGS_MQTT_URL")
 
 // The url to the prediction MQTT broker.
 var PredictionMqttUrl = loadRequired("PREDICTION_MQTT_URL")
