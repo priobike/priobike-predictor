@@ -14,6 +14,16 @@ import (
 // A map that contains all things by their name.
 var Things = &sync.Map{}
 
+// Count the number of things that have been synced.
+func CountThings() int {
+	count := 0
+	Things.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
+}
+
 // A map that contains all thing names by their crossing id.
 var Crossings = &sync.Map{}
 
@@ -50,7 +60,7 @@ func syncThingsPage(page int) (more bool) {
 			"  or properties/laneType eq 'Fußgänger/Radfahrer' "+
 			"  or properties/laneType eq 'Bus/Radfahrer' "+
 			"  or properties/laneType eq 'KFZ/Bus/Radfahrer')"+
-			"&$expand=Datastreams"+
+			"&$expand=Datastreams,Locations"+
 			"&$skip="+fmt.Sprintf("%d", page*elementsPerPage),
 	)
 

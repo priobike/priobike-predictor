@@ -32,8 +32,14 @@ func main() {
 	go predictions.PublishAllBestPredictionsPeriodically()
 	// Update the prediction metrics once for the dashboard.
 	monitor.UpdateMetricsFiles()
+	monitor.WriteGeoJSONMap()
+	monitor.WriteStatusForEachSG()
+	monitor.WriteSummary()
 	// Update the prediction metrics periodically for the dashboard.
 	go monitor.UpdateMetricsFilesPeriodically()
+	go monitor.UpdateGeoJSONMapPeriodically()
+	go monitor.UpdateSGStatusPeriodically()
+	go monitor.UpdateStatusSummaryPeriodically()
 	// Bind the callbacks.
 	observations.PrimarySignalCallback = func(thingName string) {
 		predictions.PublishBestPrediction(thingName)

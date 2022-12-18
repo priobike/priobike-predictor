@@ -48,3 +48,22 @@ func (p Prediction) Equals(other Prediction) bool {
 	// Don't compare the quality, to speed up the comparison.
 	return true
 }
+
+// Calculate the average quality of a prediction.
+func (p Prediction) AverageQuality() float64 {
+	qualitySum := 0
+	qualityLength := 0
+	for _, quality := range p.NowQuality {
+		qualitySum += int(quality)
+		qualityLength++
+	}
+	for _, quality := range p.ThenQuality {
+		qualitySum += int(quality)
+		qualityLength++
+	}
+	if qualityLength > 0 {
+		return float64(qualitySum) / float64(qualityLength)
+	} else {
+		return 0
+	}
+}

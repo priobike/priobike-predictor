@@ -25,7 +25,7 @@ func publish(p Prediction) error {
 	defer publishLock.Unlock()
 
 	// Publish the prediction
-	topic := fmt.Sprintf("prediction/%s", p.ThingName)
+	topic := fmt.Sprintf("hamburg/%s", p.ThingName)
 	// Serialize the prediction to json.
 	data, err := json.Marshal(p)
 	if err != nil {

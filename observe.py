@@ -60,7 +60,7 @@ def udp_thread():
 # Subscribe in parallel to the predictions
 sub_predictions = f"mosquitto_sub -h localhost -p 1883 -v "
 sub_predictions += f"-i {str(random.randint(0, 1000000))} "
-sub_predictions += f"-t 'prediction/{args.name}' "
+sub_predictions += f"-t 'hamburg/{args.name}' "
 
 last_prediction = None
 

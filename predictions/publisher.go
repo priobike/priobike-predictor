@@ -9,26 +9,36 @@ import (
 )
 
 // The most recent prediction by their thing name.
-var current = &sync.Map{}
+var Current = &sync.Map{}
 
 // Get the most recent prediction for a given thing.
 func GetCurrentPrediction(thingName string) (Prediction, bool) {
-	prediction, ok := current.Load(thingName)
+	prediction, ok := Current.Load(thingName)
 	if !ok {
 		return Prediction{}, false
 	}
 	return prediction.(Prediction), true
 }
 
+// Get the number of predictions that are currently stored.
+func CountPredictions() int {
+	var count int
+	Current.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
+}
+
 // Locks that must be used when making a prediction.
 var predictionLocks = &sync.Map{}
 
 // The times at which a prediction was published for a given thing.
-var times = &sync.Map{}
+var Times = &sync.Map{}
 
 // Get the last time a prediction was published for a given thing.
 func GetLastPredictionTime(thingName string) (time.Time, bool) {
-	t, ok := times.Load(thingName)
+	t, ok := Times.Load(thingName)
 	if !ok {
 		return time.Time{}, false
 	}
@@ -71,8 +81,8 @@ func PublishBestPrediction(thingName string) {
 		return
 	}
 
-	current.Store(prediction.ThingName, prediction)
-	times.Store(thingName, time.Now())
+	Current.Store(prediction.ThingName, prediction)
+	Times.Store(thingName, time.Now())
 
 	atomic.AddUint64(&PredictionsPublished, 1)
 	if (PredictionsPublished%1000) == 0 && PredictionsPublished > 0 {

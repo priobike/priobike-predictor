@@ -1,6 +1,7 @@
 package predictions
 
 import (
+	"fmt"
 	"math"
 	"predictor/calc"
 	"predictor/histories"
@@ -201,13 +202,16 @@ func predict(thingName string) (Prediction, error) {
 	}
 	// If the history is empty, we will not use it.
 	if len(history.Cycles) == 0 {
-		return Prediction{}, nil
+		return Prediction{}, fmt.Errorf("no history available")
 	}
 
 	// By default, we base our prediction on the last cycle end time.
 	// However, the history is filtered for erroneous cycles. Therefore,
 	// we use the most recent primary signal cycle end time if available.
 	var runningCycleStartTime = history.Cycles[len(history.Cycles)-1].EndTime
+	if runningCycleStartTime.Unix() < 0 {
+		return Prediction{}, fmt.Errorf("no valid history available")
+	}
 	// Get the current primary signal cycle.
 	var runningCycle = []observations.Observation{}
 	primarySignalCycle, err := observations.GetPrimarySignalCycle(thingName)
@@ -253,7 +257,7 @@ func predict(thingName string) (Prediction, error) {
 
 	// Skip if no prediction could be calculated.
 	if len(predictionNow) == 0 || len(predictionThen) == 0 {
-		return Prediction{}, nil
+		return Prediction{}, fmt.Errorf("no prediction available")
 	}
 
 	// Build the prediction.
