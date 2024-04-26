@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"predictor/env"
 	"predictor/log"
 	"predictor/observations"
@@ -38,6 +39,12 @@ func appendToHistoryFile(path string, newCycle HistoryCycle) (History, error) {
 	lock, _ := historyFileLocks.LoadOrStore(path, &sync.Mutex{})
 	lock.(*sync.Mutex).Lock()
 	defer lock.(*sync.Mutex).Unlock()
+	// Make sure the directory exists, otherwise create it.
+	err := os.MkdirAll(filepath.Dir(path), os.ModePerm)
+	if err != nil {
+		log.Error.Println(err)
+		return History{}, err
+	}
 	// Marshal the history to the file.
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -83,13 +90,16 @@ func LoadHistory(path string) (History, error) {
 	return historyFromFile, nil
 }
 
+// Interface to overwrite for tests.
+var getCurrentProgram = observations.GetCurrentProgram
+
 // Load the best fitting history for a given thing name.
 // This will lookup the program currently running on the thing and load the corresponding history.
 // If no such history exists, it will load the default history.
 func LoadBestFittingHistory(thingName string) (history History, programId *byte, err error) {
 	programsToSearch := []*byte{}
 	// Lookup the last running program.
-	if programObservation, ok := observations.GetCurrentProgram(thingName); ok {
+	if programObservation, ok := getCurrentProgram(thingName); ok {
 		programsToSearch = append(programsToSearch, &programObservation.Result)
 	}
 	programsToSearch = append(programsToSearch, nil)
