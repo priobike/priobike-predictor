@@ -1,6 +1,7 @@
 package main
 
 import (
+	"predictor/env"
 	"predictor/histories"
 	"predictor/monitor"
 	"predictor/observations"
@@ -10,6 +11,7 @@ import (
 )
 
 func main() {
+	env.Init()
 	// Sync the things.
 	things.SyncThings()
 	// Update the history index once for the cycle visualizer.
