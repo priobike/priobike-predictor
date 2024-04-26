@@ -49,6 +49,13 @@ func (p Prediction) Equals(other Prediction) bool {
 	return true
 }
 
+// Check if a prediction is within n seconds of the other prediction.
+func (p Prediction) WithinTimeOfSeconds(d time.Duration, other Prediction) bool {
+	upperTimeBound := other.ReferenceTime.Add(d)
+	lowerTimeBound := other.ReferenceTime.Add(-d)
+	return p.ReferenceTime.After(lowerTimeBound) && p.ReferenceTime.Before(upperTimeBound)
+}
+
 // Calculate the average quality of a prediction.
 func (p Prediction) AverageQuality() float64 {
 	qualitySum := 0

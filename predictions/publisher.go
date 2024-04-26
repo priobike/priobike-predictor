@@ -72,6 +72,12 @@ func PublishBestPrediction(thingName string) {
 			atomic.AddUint64(&PredictionsDiscarded, 1)
 			return
 		}
+
+		// Avoid publishing new predictions too rapidly.
+		if prediction.WithinTimeOfSeconds(1*time.Second, lastPrediction) {
+			atomic.AddUint64(&PredictionsDiscarded, 1)
+			return
+		}
 	}
 
 	err = publish(prediction)
