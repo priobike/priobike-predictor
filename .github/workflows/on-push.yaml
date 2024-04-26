@@ -21,7 +21,8 @@ jobs:
 
   publish:
     needs: test
-    runs-on: docker:latest
+    runs-on: ubuntu-latest
+    container: docker:latest
 
     permissions:
       contents: read
