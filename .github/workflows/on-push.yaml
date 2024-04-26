@@ -14,9 +14,14 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
+    with: 
+      branch: ${{ github.ref }}
+
   publish:
-    runs-on: self-hosted
-    container: docker:latest
+    needs: test
+    runs-on: docker:latest
 
     permissions:
       contents: read

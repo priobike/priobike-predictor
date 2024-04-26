@@ -1,0 +1,14 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+      - stable
+      - release
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
+    with: 
+      branch: ${{ github.ref }}
