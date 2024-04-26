@@ -1,6 +1,6 @@
 # Predictor
 
-A minimalistic service that syncs signal groups from a SensorThings API and publishes predictions about them. This project is a proof-of-work for a prediction algorithm that has many advantages over the "old" prediction service:
+A minimalistic service that syncs signal groups from a SensorThings API and publishes predictions about them. This project is a proof-of-concept for a prediction algorithm that has many advantages over our current "old" prediction service:
 
 - Predictions are published with every possible signal state, not only green and red. This allows for signals that change between other states (e.g. black/red or black/amber) and the displaying of indermediate states (amber-red/amber) in the PrioBike app.
 - Predictions are immediately available due to a history persistence which reacts to the currently running program.
