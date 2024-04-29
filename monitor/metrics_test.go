@@ -1,6 +1,9 @@
 package monitor
 
 import (
+	"fmt"
+	"os"
+	"predictor/env"
 	"predictor/observations"
 	"predictor/predictions"
 	"predictor/things"
@@ -172,5 +175,29 @@ func TestGeneratePrometheusMetrics(t *testing.T) {
 	if !search("predictor_deviation{bucket=\"00\"}", 1) {
 		t.Errorf("unexpected metrics value")
 		t.FailNow()
+	}
+}
+
+func TestMetricsFile(t *testing.T) {
+	prepareMocks()
+
+	tempDir := t.TempDir()
+	env.StaticPath = tempDir
+
+	UpdateMetricsFiles()
+
+	filePath := fmt.Sprintf("%s/metrics.json", tempDir)
+	fileContent, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Errorf("metrics file could not be opened")
+		t.FailNow()
+	}
+	fileAsStr := string(fileContent)
+	metrics := strings.Split(fileAsStr, "\n")
+
+	// Just a simple check if there are metrics, the logic
+	// is checked in the other tests
+	if len(metrics) == 0 {
+		t.Errorf("no metrics found")
 	}
 }
