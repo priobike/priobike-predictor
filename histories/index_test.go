@@ -11,6 +11,11 @@ import (
 )
 
 func TestHistoryIndex(t *testing.T) {
+	// Cleanup the history
+	cache.Range(func(key interface{}, value interface{}) bool {
+		cache.Delete(key)
+		return true
+	})
 	// Write some dummy histories in the cache.
 	tempDir := t.TempDir()
 	exampleCycle := HistoryCycle{
@@ -83,6 +88,6 @@ func TestHistoryIndex(t *testing.T) {
 
 	// Using deep equals here is fine
 	if !reflect.DeepEqual(unmarshaledIndex, expectedIndex) {
-		t.Errorf("expected index does not correspond with unmarshaled index")
+		t.Errorf("expected index does not correspond with unmarshaled index: %v != %v", expectedIndex, unmarshaledIndex)
 	}
 }
