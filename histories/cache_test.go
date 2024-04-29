@@ -2,7 +2,6 @@ package histories
 
 import (
 	"fmt"
-	"io/ioutil"
 	"predictor/env"
 	"predictor/observations"
 	"sync"
@@ -12,10 +11,7 @@ import (
 
 func TestHistoryFileConcurrentWriteAndLoad(t *testing.T) {
 	var concurrent uint = 0
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Errorf(err.Error())
-	}
+	tempDir := t.TempDir()
 	mockFilePath := fmt.Sprintf("%s/h.json", tempDir)
 
 	var wg sync.WaitGroup
@@ -43,10 +39,7 @@ func TestHistoryFileConcurrentWriteAndLoad(t *testing.T) {
 
 func TestBypassCache(t *testing.T) {
 	var runs uint = 0
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Errorf(err.Error())
-	}
+	tempDir := t.TempDir()
 	mockFilePath := fmt.Sprintf("%s/h.json", tempDir)
 
 	for {
@@ -70,10 +63,7 @@ func TestBypassCache(t *testing.T) {
 }
 
 func TestLoadBestHistory(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Errorf(err.Error())
-	}
+	tempDir := t.TempDir()
 	env.StaticPath = tempDir
 
 	unspecificHistoryFile := fmt.Sprintf("%s/history/%s", tempDir, "1337_1.json")
@@ -84,7 +74,7 @@ func TestLoadBestHistory(t *testing.T) {
 	specificHistoryCycle1 := HistoryCycle{
 		StartTime: time.Now(),
 	}
-	_, err = appendToHistoryFile(unspecificHistoryFile, unspecificHistoryCycle1)
+	_, err := appendToHistoryFile(unspecificHistoryFile, unspecificHistoryCycle1)
 	if err != nil {
 		t.Errorf(err.Error())
 		t.FailNow()
