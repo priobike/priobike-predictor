@@ -46,7 +46,7 @@ func TestWriteGeoJSONMap(t *testing.T) {
 			},
 		},
 	}
-	getAllThings = func(callback func(key, value interface{}) bool) {
+	getAllThingsForMap = func(callback func(key, value interface{}) bool) {
 		callback(
 			"1337_1", things.Thing{
 				Name: "1337_1",
@@ -71,7 +71,7 @@ func TestWriteGeoJSONMap(t *testing.T) {
 		ThenQuality:   []byte{100, 100, 100, 100, 100, 100, 100, 100, 100, 100},
 		ReferenceTime: time.Unix(0, 0),
 	}
-	getCurrentPrediction = func(thingName string) (predictions.Prediction, bool) {
+	getCurrentPredictionForMap = func(thingName string) (predictions.Prediction, bool) {
 		return mockPrediction, true
 	}
 

@@ -15,10 +15,10 @@ import (
 )
 
 // Interface to overwrite for testing purposes.
-var getAllThings = things.Things.Range
+var getAllThingsForMap = things.Things.Range
 
 // Interface to overwrite for testing purposes.
-var getCurrentPrediction = predictions.GetCurrentPrediction
+var getCurrentPredictionForMap = predictions.GetCurrentPrediction
 
 // Write geojson data that can be used to visualize the predictions.
 // The geojson file is written to the static directory.
@@ -26,7 +26,7 @@ func WriteGeoJSONMap() {
 	// Write the geojson to the file.
 	locationFeatureCollection := geojson.NewFeatureCollection() // Locations of traffic lights.
 	laneFeatureCollection := geojson.NewFeatureCollection()     // Lanes of traffic lights.
-	getAllThings(func(key, value interface{}) bool {
+	getAllThingsForMap(func(key, value interface{}) bool {
 		thingName := key.(string)
 		thing := value.(things.Thing)
 
@@ -39,7 +39,7 @@ func WriteGeoJSONMap() {
 		lat, lng := coordinate[1], coordinate[0]
 
 		// Check if there is a prediction for this thing.
-		prediction, predictionOk := getCurrentPrediction(thingName)
+		prediction, predictionOk := getCurrentPredictionForMap(thingName)
 		// Build the properties.
 		properties := make(map[string]interface{})
 		if predictionOk {

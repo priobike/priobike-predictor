@@ -40,6 +40,48 @@ type MetricsEntry struct {
 // This is to gobally protect concurrent access to the same file.
 var metricsFileLock = &sync.Mutex{}
 
+// Interfaces to overwrite for testing purposes.
+var getAllThingsForMetrics = things.Things.Range
+var getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal
+var getCurrentProgramForMetrics = observations.GetCurrentProgram
+var getCurrentPredictionForMetrics = predictions.GetCurrentPrediction
+var getLastPredictionTimeForMetrics = predictions.GetLastPredictionTime
+var getObservationsReceivedByTopic = func(callback func(dsType string, count uint64)) {
+	// Lock for async access.
+	observations.ObservationsReceivedByTopicLock.RLock()
+	defer observations.ObservationsReceivedByTopicLock.RUnlock()
+	for dsType, count := range observations.ObservationsReceivedByTopic {
+		callback(dsType, count)
+	}
+}
+var getObservationsReceived = func() uint64 {
+	return observations.ObservationsReceived
+}
+var getObservationsProcessed = func() uint64 {
+	return observations.ObservationsProcessed
+}
+var getObservationsDiscarded = func() uint64 {
+	return observations.ObservationsDiscarded
+}
+var getHistoryUpdatesRequested = func() uint64 {
+	return histories.HistoryUpdatesRequested
+}
+var getHistoryUpdatesProcessed = func() uint64 {
+	return histories.HistoryUpdatesProcessed
+}
+var getHistoryUpdatesDiscarded = func() uint64 {
+	return histories.HistoryUpdatesDiscarded
+}
+var getPredictionsChecked = func() uint64 {
+	return predictions.PredictionsChecked
+}
+var getPredictionsPublished = func() uint64 {
+	return predictions.PredictionsPublished
+}
+var getPredictionsDiscarded = func() uint64 {
+	return predictions.PredictionsDiscarded
+}
+
 func generateMetrics() Metrics {
 	entries := []MetricsEntry{}
 
@@ -49,20 +91,20 @@ func generateMetrics() Metrics {
 	var delaySum float64
 	var delayCount int
 
-	things.Things.Range(func(key, _ interface{}) bool {
+	getAllThingsForMetrics(func(key, _ interface{}) bool {
 		thingName := key.(string)
 		entry := MetricsEntry{ThingName: thingName}
 		defer func() { entries = append(entries, entry) }()
 
 		// Get the current state of the thing.
-		primarySignalObservation, ok := observations.GetCurrentPrimarySignal(thingName)
+		primarySignalObservation, ok := getCurrentPrimarySignalForMetrics(thingName)
 		if !ok {
 			return true
 		}
 		entry.ActualColor = &primarySignalObservation.Result
 
 		// Get the last running program of the thing.
-		if programObservation, ok := observations.GetCurrentProgram(thingName); ok {
+		if programObservation, ok := getCurrentProgramForMetrics(thingName); ok {
 			entry.Program = &programObservation.Result
 		}
 
@@ -78,7 +120,7 @@ func generateMetrics() Metrics {
 		// compare a delayed prediction with a delayed observation.
 		nowWithDelay := time.Now().Add(-timeDelay)
 
-		if prediction, ok := predictions.GetCurrentPrediction(thingName); ok {
+		if prediction, ok := getCurrentPredictionForMetrics(thingName); ok {
 			delayedTimeInPrediction := int(math.Abs(
 				nowWithDelay.Sub(prediction.ReferenceTime).Seconds(),
 			))
@@ -134,7 +176,7 @@ func generateMetrics() Metrics {
 		}
 
 		// Get the age of the prediction.
-		if lastPredictionTime, ok := predictions.GetLastPredictionTime(thingName); ok {
+		if lastPredictionTime, ok := getLastPredictionTimeForMetrics(thingName); ok {
 			age := int(time.Since(lastPredictionTime).Abs().Seconds())
 			entry.PredictionAge = &age
 		}
@@ -181,24 +223,22 @@ func generatePrometheusMetrics(m Metrics) []string {
 	lines = append(lines, fmt.Sprintf("predictor_mean_msg_delay %f", m.MeanMsgDelay))
 
 	// Add metrics for the observations.
-	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"received\"} %d", observations.ObservationsReceived))
-	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"processed\"} %d", observations.ObservationsProcessed))
-	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"discarded\"} %d", observations.ObservationsDiscarded))
-	observations.ObservationsReceivedByTopicLock.RLock()
-	for dsType, count := range observations.ObservationsReceivedByTopic {
+	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"received\"} %d", getObservationsReceived()))
+	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"processed\"} %d", getObservationsProcessed()))
+	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"discarded\"} %d", getObservationsDiscarded()))
+	getObservationsReceivedByTopic(func(dsType string, count uint64) {
 		lines = append(lines, fmt.Sprintf("predictor_observations_by_topic{topic=\"%s\"} %d", dsType, count))
-	}
-	observations.ObservationsReceivedByTopicLock.RUnlock()
+	})
 
 	// Add metrics for the histories.
-	lines = append(lines, fmt.Sprintf("predictor_histories{action=\"requested\"} %d", histories.HistoryUpdatesRequested))
-	lines = append(lines, fmt.Sprintf("predictor_histories{action=\"processed\"} %d", histories.HistoryUpdatesProcessed))
-	lines = append(lines, fmt.Sprintf("predictor_histories{action=\"discarded\"} %d", histories.HistoryUpdatesDiscarded))
+	lines = append(lines, fmt.Sprintf("predictor_histories{action=\"requested\"} %d", getHistoryUpdatesRequested()))
+	lines = append(lines, fmt.Sprintf("predictor_histories{action=\"processed\"} %d", getHistoryUpdatesProcessed()))
+	lines = append(lines, fmt.Sprintf("predictor_histories{action=\"discarded\"} %d", getHistoryUpdatesDiscarded()))
 
 	// Add metrics for the predictions.
-	lines = append(lines, fmt.Sprintf("predictor_predictions{action=\"checked\"} %d", predictions.PredictionsChecked))
-	lines = append(lines, fmt.Sprintf("predictor_predictions{action=\"published\"} %d", predictions.PredictionsPublished))
-	lines = append(lines, fmt.Sprintf("predictor_predictions{action=\"discarded\"} %d", predictions.PredictionsDiscarded))
+	lines = append(lines, fmt.Sprintf("predictor_predictions{action=\"checked\"} %d", getPredictionsChecked()))
+	lines = append(lines, fmt.Sprintf("predictor_predictions{action=\"published\"} %d", getPredictionsPublished()))
+	lines = append(lines, fmt.Sprintf("predictor_predictions{action=\"discarded\"} %d", getPredictionsDiscarded()))
 
 	for bucket, value := range m.Deviations {
 		// Add with trailing 0s to make the graph look nicer.
