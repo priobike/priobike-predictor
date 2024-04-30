@@ -71,8 +71,7 @@ func processMessage(msg mqtt.Message) {
 
 	// Increment the number of received messages.
 	val, _ := ObservationsReceivedByTopic.LoadOrStore(dsType.(string), uint64(1))
-	ptr := val.(*int64)
-	atomic.AddInt64(ptr, 1)
+	ObservationsReceivedByTopic.Store(dsType.(string), val.(uint64)+1)
 
 	var observation Observation
 	if err := json.Unmarshal(msg.Payload(), &observation); err != nil {
