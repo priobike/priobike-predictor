@@ -2,8 +2,9 @@ package monitor
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"os"
+	"path/filepath"
 	"predictor/env"
 	"predictor/log"
 	"predictor/predictions"
@@ -23,9 +24,13 @@ type SGStatus struct {
 	PredictionTime *int64 `json:"prediction_time"`
 }
 
+// Interface to overwrite for testing purposes.
+var getThingsForSGStatus = things.Things.Range
+var getCurrentPredictionForSGStatus = predictions.GetCurrentPrediction
+
 // Write a status file for each signal group.
 func WriteStatusForEachSG() {
-	things.Things.Range(func(key, value interface{}) bool {
+	getThingsForSGStatus(func(key, value interface{}) bool {
 		thingName := key.(string)
 		thing := value.(things.Thing)
 
@@ -36,7 +41,7 @@ func WriteStatusForEachSG() {
 		}
 
 		// Get the prediction for the signal group.
-		prediction, ok := predictions.GetCurrentPrediction(thingName)
+		prediction, ok := getCurrentPredictionForSGStatus(thingName)
 		if ok {
 			avg := prediction.AverageQuality() / 100
 			status.PredictionQuality = &avg
@@ -45,19 +50,24 @@ func WriteStatusForEachSG() {
 		}
 
 		// Write the status update to a json file.
-		statusJson, err := json.Marshal(status)
+		filePath := fmt.Sprintf("%s/status/%s/status.json", env.StaticPath, thing.Topic())
+		// Make sure the directory exists, otherwise create it.
+		err := os.MkdirAll(filepath.Dir(filePath), 0755)
 		if err != nil {
-			log.Error.Println("Error marshalling status:", err)
+			log.Error.Println("Error creating directory for status file:", err)
 			return true
 		}
-		path := env.StaticPath + "/status/" + thing.Topic()
-		if err := ioutil.WriteFile(path+"/status.json", statusJson, 0644); err != nil {
-			// If the path contains a directory that does not exist, create it.
-			// But don't create a folder for the file itself.
-			if err := os.MkdirAll(path, 0755); err != nil {
-				log.Error.Println("Error creating directory for status file:", err)
-				return true
-			}
+		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0644)
+		if err != nil {
+			log.Error.Println("Error writing status.json: ", err)
+			return true
+		}
+		defer file.Close()
+		encoder := json.NewEncoder(file)
+		err = encoder.Encode(status)
+		if err != nil {
+			log.Error.Println("Error marshaling to status.json: ", err)
+			return true
 		}
 		return true
 	})
