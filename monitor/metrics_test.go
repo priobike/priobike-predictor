@@ -17,21 +17,21 @@ func prepareMocks() {
 	getAllThingsForMetrics = func(f func(key, value interface{}) bool) {
 		f("1337_1", things.Thing{}) // Thing can be empty, only name is needed
 	}
-	getCurrentPrimarySignalForMetrics = func(thingName string) (observations.Observation, bool) {
+	getCurrentPrimarySignalForMetrics = func(_ string) (observations.Observation, bool) {
 		return observations.Observation{
 			Result:         4, // RedAmber
 			ReceivedTime:   time.Unix(1, 0),
 			PhenomenonTime: time.Unix(0, 0), // 1 second delay
 		}, true
 	}
-	getCurrentProgramForMetrics = func(thingName string) (observations.Observation, bool) {
+	getCurrentProgramForMetrics = func(_ string) (observations.Observation, bool) {
 		return observations.Observation{
 			Result:         10, // Program 10
 			ReceivedTime:   time.Unix(1, 0),
 			PhenomenonTime: time.Unix(0, 0), // 1 second delay
 		}, true
 	}
-	getCurrentPredictionForMetrics = func(thingName string) (predictions.Prediction, bool) {
+	getCurrentPredictionForMetrics = func(_ string) (predictions.Prediction, bool) {
 		return predictions.Prediction{
 			ThingName:   "1337_1",
 			Now:         []byte{1, 1, 1, 1, 1, 3, 3, 3, 3, 3},
@@ -43,15 +43,15 @@ func prepareMocks() {
 			ReferenceTime: time.Unix(0, 0),
 		}, true
 	}
-	getLastPredictionTimeForMetrics = func(thingName string) (time.Time, bool) {
+	getLastPredictionTimeForMetrics = func(_ string) (time.Time, bool) {
 		return time.Unix(0, 0), true
 	}
-	getObservationsReceivedByTopic = func(callback func(dsType string, count uint64)) {
-		callback("primary_signal", 1)
-		callback("signal_program", 1)
-		callback("cycle_second", 1)
-		callback("detector_bike", 0)
-		callback("detector_car", 0)
+	getObservationsReceivedByTopic = func(f func(k, v interface{}) bool) {
+		f("primary_signal", 1)
+		f("signal_program", 1)
+		f("cycle_second", 1)
+		f("detector_bike", 0)
+		f("detector_car", 0)
 	}
 	getObservationsReceived = func() uint64 {
 		return 1

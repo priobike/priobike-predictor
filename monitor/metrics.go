@@ -41,46 +41,21 @@ type MetricsEntry struct {
 var metricsFileLock = &sync.Mutex{}
 
 // Interfaces to other packages.
-var getAllThingsForMetrics = things.Things.Range
-var getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal
-var getCurrentProgramForMetrics = observations.GetCurrentProgram
-var getCurrentPredictionForMetrics = predictions.GetCurrentPrediction
-var getLastPredictionTimeForMetrics = predictions.GetLastPredictionTime
-var getObservationsReceivedByTopic = func(callback func(dsType string, count uint64)) {
-	// Lock for async access.
-	observations.ObservationsReceivedByTopicLock.RLock()
-	defer observations.ObservationsReceivedByTopicLock.RUnlock()
-	for dsType, count := range observations.ObservationsReceivedByTopic {
-		callback(dsType, count)
-	}
-}
-var getObservationsReceived = func() uint64 {
-	return observations.ObservationsReceived
-}
-var getObservationsProcessed = func() uint64 {
-	return observations.ObservationsProcessed
-}
-var getObservationsDiscarded = func() uint64 {
-	return observations.ObservationsDiscarded
-}
-var getHistoryUpdatesRequested = func() uint64 {
-	return histories.HistoryUpdatesRequested
-}
-var getHistoryUpdatesProcessed = func() uint64 {
-	return histories.HistoryUpdatesProcessed
-}
-var getHistoryUpdatesDiscarded = func() uint64 {
-	return histories.HistoryUpdatesDiscarded
-}
-var getPredictionsChecked = func() uint64 {
-	return predictions.PredictionsChecked
-}
-var getPredictionsPublished = func() uint64 {
-	return predictions.PredictionsPublished
-}
-var getPredictionsDiscarded = func() uint64 {
-	return predictions.PredictionsDiscarded
-}
+var getAllThingsForMetrics = things.Things.Range                                    // pointer ref
+var getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal        // func ref
+var getCurrentProgramForMetrics = observations.GetCurrentProgram                    // func ref
+var getCurrentPredictionForMetrics = predictions.GetCurrentPrediction               // func ref
+var getLastPredictionTimeForMetrics = predictions.GetLastPredictionTime             // func ref
+var getObservationsReceivedByTopic = observations.ObservationsReceivedByTopic.Range // pointer ref
+var getObservationsReceived = func() uint64 { return observations.ObservationsReceived }
+var getObservationsProcessed = func() uint64 { return observations.ObservationsProcessed }
+var getObservationsDiscarded = func() uint64 { return observations.ObservationsDiscarded }
+var getHistoryUpdatesRequested = func() uint64 { return histories.HistoryUpdatesRequested }
+var getHistoryUpdatesProcessed = func() uint64 { return histories.HistoryUpdatesProcessed }
+var getHistoryUpdatesDiscarded = func() uint64 { return histories.HistoryUpdatesDiscarded }
+var getPredictionsChecked = func() uint64 { return predictions.PredictionsChecked }
+var getPredictionsPublished = func() uint64 { return predictions.PredictionsPublished }
+var getPredictionsDiscarded = func() uint64 { return predictions.PredictionsDiscarded }
 
 func generateMetrics() Metrics {
 	entries := []MetricsEntry{}
@@ -226,8 +201,11 @@ func generatePrometheusMetrics(m Metrics) []string {
 	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"received\"} %d", getObservationsReceived()))
 	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"processed\"} %d", getObservationsProcessed()))
 	lines = append(lines, fmt.Sprintf("predictor_observations{action=\"discarded\"} %d", getObservationsDiscarded()))
-	getObservationsReceivedByTopic(func(dsType string, count uint64) {
+	getObservationsReceivedByTopic(func(k, v interface{}) bool {
+		dsType := k.(string)
+		count := v.(uint64)
 		lines = append(lines, fmt.Sprintf("predictor_observations_by_topic{topic=\"%s\"} %d", dsType, count))
+		return true
 	})
 
 	// Add metrics for the histories.

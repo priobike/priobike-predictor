@@ -21,10 +21,7 @@ import (
 const observationQoS = 1
 
 // Received messages by their topic.
-var ObservationsReceivedByTopic = make(map[string]uint64)
-
-// The lock for the map.
-var ObservationsReceivedByTopicLock = &sync.RWMutex{}
+var ObservationsReceivedByTopic = &sync.Map{}
 
 // The number of processed messages, for logging purposes.
 var ObservationsReceived uint64 = 0
@@ -49,11 +46,12 @@ func CheckReceivedMessagesPeriodically() {
 			panic("No messages received in the last 60 seconds")
 		}
 		log.Info.Printf("Received %d observations in the last 60 seconds. (%d processed, %d canceled)", dReceived, dProcessed, dCanceled)
-		ObservationsReceivedByTopicLock.RLock()
-		for dsType, count := range ObservationsReceivedByTopic {
+		ObservationsReceivedByTopic.Range(func(k, v interface{}) bool {
+			count := k.(uint64)
+			dsType := v.(string)
 			log.Info.Printf("  - Received %d observations for `%s`.", count, dsType)
-		}
-		ObservationsReceivedByTopicLock.RUnlock()
+			return true
+		})
 	}
 }
 
@@ -72,9 +70,9 @@ func processMessage(msg mqtt.Message) {
 	}
 
 	// Increment the number of received messages.
-	ObservationsReceivedByTopicLock.Lock()
-	ObservationsReceivedByTopic[dsType.(string)]++
-	ObservationsReceivedByTopicLock.Unlock()
+	val, _ := ObservationsReceivedByTopic.LoadOrStore(dsType.(string), uint64(1))
+	ptr := val.(*int64)
+	atomic.AddInt64(ptr, 1)
 
 	var observation Observation
 	if err := json.Unmarshal(msg.Payload(), &observation); err != nil {

@@ -86,7 +86,7 @@ func TestLoadBestHistory(t *testing.T) {
 	}
 
 	// Override the interface to get the current program
-	getCurrentProgram = func(thingName string) (observations.Observation, bool) {
+	getCurrentProgram = func(_ string) (observations.Observation, bool) {
 		mockProgramObservation := observations.Observation{
 			Result: 123, // Program ID relevant for selection
 		}

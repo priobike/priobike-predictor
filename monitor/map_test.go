@@ -71,7 +71,7 @@ func TestWriteGeoJSONMap(t *testing.T) {
 		ThenQuality:   []byte{100, 100, 100, 100, 100, 100, 100, 100, 100, 100},
 		ReferenceTime: time.Unix(0, 0),
 	}
-	getCurrentPredictionForMap = func(thingName string) (predictions.Prediction, bool) {
+	getCurrentPredictionForMap = func(_ string) (predictions.Prediction, bool) {
 		return mockPrediction, true
 	}
 
