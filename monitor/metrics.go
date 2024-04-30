@@ -40,7 +40,7 @@ type MetricsEntry struct {
 // This is to gobally protect concurrent access to the same file.
 var metricsFileLock = &sync.Mutex{}
 
-// Interfaces to overwrite for testing purposes.
+// Interfaces to other packages.
 var getAllThingsForMetrics = things.Things.Range
 var getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal
 var getCurrentProgramForMetrics = observations.GetCurrentProgram

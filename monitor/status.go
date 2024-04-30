@@ -2,7 +2,9 @@ package monitor
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"os"
+	"path/filepath"
 	"predictor/env"
 	"predictor/log"
 	"predictor/predictions"
@@ -28,15 +30,20 @@ type StatusSummary struct {
 	AveragePredictionQuality *float64 `json:"average_prediction_quality"`
 }
 
+// Interfaces to other packages.
+var getNumberOfThings = things.CountThings
+var getNumberOfPredictions = predictions.CountPredictions
+var getCurrentPredictions = predictions.Current.Range
+
 // Create a summary of the predictions, i.e. whether they are up to date.
 // Write the result to a static directory as json.
 func WriteSummary() {
-	numThings := things.CountThings()
-	numPredictions := predictions.CountPredictions()
+	numThings := getNumberOfThings()
+	numPredictions := getNumberOfPredictions()
 
 	var mostRecentPredictionTime *int64 = nil
 	var oldestPredictionTime *int64 = nil
-	predictions.Current.Range(func(key, value interface{}) bool {
+	getCurrentPredictions(func(key, value interface{}) bool {
 		prediction := value.(predictions.Prediction)
 		t := prediction.ReferenceTime.Unix()
 		if mostRecentPredictionTime == nil || t > *mostRecentPredictionTime {
@@ -53,7 +60,7 @@ func WriteSummary() {
 	numBadPredictions := 0
 	if numPredictions > 0 {
 		var sum float64 = 0
-		predictions.Current.Range(func(key, value interface{}) bool {
+		getCurrentPredictions(func(key, value interface{}) bool {
 			prediction := value.(predictions.Prediction)
 			quality := prediction.AverageQuality() / 100
 			if quality <= 0.5 {
@@ -81,12 +88,24 @@ func WriteSummary() {
 	}
 
 	// Write the status update to the file.
-	statusJson, err := json.Marshal(summary)
+	filePath := fmt.Sprintf("%s/status/status.json", env.StaticPath)
+	err := os.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
-		log.Error.Println("Error marshalling status summary:", err)
+		log.Error.Println("Error creating directory for status summary file:", err)
 		return
 	}
-	ioutil.WriteFile(env.StaticPath+"/status/status.json", statusJson, 0644)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		log.Error.Println("Error writing summary status.json: ", err)
+		return
+	}
+	defer file.Close()
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(summary)
+	if err != nil {
+		log.Error.Println("Error marshaling to summary status.json: ", err)
+		return
+	}
 }
 
 func UpdateStatusSummaryPeriodically() {

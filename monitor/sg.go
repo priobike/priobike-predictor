@@ -24,7 +24,7 @@ type SGStatus struct {
 	PredictionTime *int64 `json:"prediction_time"`
 }
 
-// Interface to overwrite for testing purposes.
+// Interface to other packages.
 var getThingsForSGStatus = things.Things.Range
 var getCurrentPredictionForSGStatus = predictions.GetCurrentPrediction
 

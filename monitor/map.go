@@ -14,10 +14,8 @@ import (
 	geojson "github.com/paulmach/go.geojson"
 )
 
-// Interface to overwrite for testing purposes.
+// Interfaces to other packages.
 var getAllThingsForMap = things.Things.Range
-
-// Interface to overwrite for testing purposes.
 var getCurrentPredictionForMap = predictions.GetCurrentPrediction
 
 // Write geojson data that can be used to visualize the predictions.
