@@ -47,8 +47,8 @@ func CheckReceivedMessagesPeriodically() {
 		}
 		log.Info.Printf("Received %d observations in the last 60 seconds. (%d processed, %d canceled)", dReceived, dProcessed, dCanceled)
 		ObservationsReceivedByTopic.Range(func(k, v interface{}) bool {
-			count := k.(uint64)
-			dsType := v.(string)
+			dsType := k.(string)
+			count := v.(uint64)
 			log.Info.Printf("  - Received %d observations for `%s`.", count, dsType)
 			return true
 		})
