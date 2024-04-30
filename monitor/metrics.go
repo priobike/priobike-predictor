@@ -41,21 +41,23 @@ type MetricsEntry struct {
 var metricsFileLock = &sync.Mutex{}
 
 // Interfaces to other packages.
-var getAllThingsForMetrics = things.Things.Range                                    // pointer ref
-var getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal        // func ref
-var getCurrentProgramForMetrics = observations.GetCurrentProgram                    // func ref
-var getCurrentPredictionForMetrics = predictions.GetCurrentPrediction               // func ref
-var getLastPredictionTimeForMetrics = predictions.GetLastPredictionTime             // func ref
-var getObservationsReceivedByTopic = observations.ObservationsReceivedByTopic.Range // pointer ref
-var getObservationsReceived = func() uint64 { return observations.ObservationsReceived }
-var getObservationsProcessed = func() uint64 { return observations.ObservationsProcessed }
-var getObservationsDiscarded = func() uint64 { return observations.ObservationsDiscarded }
-var getHistoryUpdatesRequested = func() uint64 { return histories.HistoryUpdatesRequested }
-var getHistoryUpdatesProcessed = func() uint64 { return histories.HistoryUpdatesProcessed }
-var getHistoryUpdatesDiscarded = func() uint64 { return histories.HistoryUpdatesDiscarded }
-var getPredictionsChecked = func() uint64 { return predictions.PredictionsChecked }
-var getPredictionsPublished = func() uint64 { return predictions.PredictionsPublished }
-var getPredictionsDiscarded = func() uint64 { return predictions.PredictionsDiscarded }
+var (
+	getAllThingsForMetrics            = things.Things.Range                            // pointer ref
+	getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal           // func ref
+	getCurrentProgramForMetrics       = observations.GetCurrentProgram                 // func ref
+	getCurrentPredictionForMetrics    = predictions.GetCurrentPrediction               // func ref
+	getLastPredictionTimeForMetrics   = predictions.GetLastPredictionTime              // func ref
+	getObservationsReceivedByTopic    = observations.ObservationsReceivedByTopic.Range // pointer ref
+	getObservationsReceived           = func() uint64 { return observations.ObservationsReceived }
+	getObservationsProcessed          = func() uint64 { return observations.ObservationsProcessed }
+	getObservationsDiscarded          = func() uint64 { return observations.ObservationsDiscarded }
+	getHistoryUpdatesRequested        = func() uint64 { return histories.HistoryUpdatesRequested }
+	getHistoryUpdatesProcessed        = func() uint64 { return histories.HistoryUpdatesProcessed }
+	getHistoryUpdatesDiscarded        = func() uint64 { return histories.HistoryUpdatesDiscarded }
+	getPredictionsChecked             = func() uint64 { return predictions.PredictionsChecked }
+	getPredictionsPublished           = func() uint64 { return predictions.PredictionsPublished }
+	getPredictionsDiscarded           = func() uint64 { return predictions.PredictionsDiscarded }
+)
 
 func generateMetrics() Metrics {
 	entries := []MetricsEntry{}

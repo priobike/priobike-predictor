@@ -25,8 +25,10 @@ type SGStatus struct {
 }
 
 // Interface to other packages.
-var getThingsForSGStatus = things.Things.Range
-var getCurrentPredictionForSGStatus = predictions.GetCurrentPrediction
+var (
+	getThingsForSGStatus            = things.Things.Range
+	getCurrentPredictionForSGStatus = predictions.GetCurrentPrediction
+)
 
 // Write a status file for each signal group.
 func WriteStatusForEachSG() {

@@ -15,8 +15,10 @@ import (
 )
 
 // Interfaces to other packages.
-var getAllThingsForMap = things.Things.Range                      // pointer ref
-var getCurrentPredictionForMap = predictions.GetCurrentPrediction // func ref
+var (
+	getAllThingsForMap         = things.Things.Range              // pointer ref
+	getCurrentPredictionForMap = predictions.GetCurrentPrediction // func ref
+)
 
 // Write geojson data that can be used to visualize the predictions.
 // The geojson file is written to the static directory.

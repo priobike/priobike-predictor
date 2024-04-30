@@ -31,9 +31,11 @@ type StatusSummary struct {
 }
 
 // Interfaces to other packages.
-var getNumberOfThings = things.CountThings
-var getNumberOfPredictions = predictions.CountPredictions
-var getCurrentPredictions = predictions.Current.Range
+var (
+	getNumberOfThings      = things.CountThings
+	getNumberOfPredictions = predictions.CountPredictions
+	getCurrentPredictions  = predictions.Current.Range
+)
 
 // Create a summary of the predictions, i.e. whether they are up to date.
 // Write the result to a static directory as json.
