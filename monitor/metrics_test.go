@@ -47,11 +47,11 @@ func prepareMocks() {
 		return time.Unix(0, 0), true
 	}
 	getObservationsReceivedByTopic = func(f func(k, v interface{}) bool) {
-		f("primary_signal", 1)
-		f("signal_program", 1)
-		f("cycle_second", 1)
-		f("detector_bike", 0)
-		f("detector_car", 0)
+		f("primary_signal", uint64(1))
+		f("signal_program", uint64(1))
+		f("cycle_second", uint64(1))
+		f("detector_bike", uint64(0))
+		f("detector_car", uint64(0))
 	}
 	getObservationsReceived = func() uint64 {
 		return 1
