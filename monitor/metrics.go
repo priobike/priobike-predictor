@@ -45,6 +45,7 @@ var (
 	getAllThingsForMetrics            = things.Things.Range                            // pointer ref
 	getCurrentPrimarySignalForMetrics = observations.GetCurrentPrimarySignal           // func ref
 	getCurrentProgramForMetrics       = observations.GetCurrentProgram                 // func ref
+	getAllPredictionQualities         = predictions.GetPredictionQualities             // func ref
 	getCurrentPredictionForMetrics    = predictions.GetCurrentPrediction               // func ref
 	getLastPredictionTimeForMetrics   = predictions.GetLastPredictionTime              // func ref
 	getObservationsReceivedByTopic    = observations.ObservationsReceivedByTopic.Range // pointer ref
@@ -227,6 +228,44 @@ func generatePrometheusMetrics(m Metrics) []string {
 		}
 		lines = append(lines, fmt.Sprintf("predictor_deviation{bucket=\"%s\"} %d", bucket, value))
 	}
+
+	// Make a histogram similar to our prediction service.
+	lines = append(lines, "# HELP predictor_prediction_quality_distribution")
+	lines = append(lines, "# TYPE predictor_prediction_quality_distribution histogram")
+	predictionQualities := getAllPredictionQualities()
+	// Buckets: 1.0, 10.0, 20.0, ..., 100.0, +Inf
+	predictionQualityBuckets := make(map[string]int)
+	for _, quality := range predictionQualities {
+		qualityPct := quality * 100
+		if qualityPct <= 1 {
+			predictionQualityBuckets["1.0"]++
+		} else if qualityPct <= 10 {
+			predictionQualityBuckets["10.0"]++
+		} else if qualityPct <= 20 {
+			predictionQualityBuckets["20.0"]++
+		} else if qualityPct <= 30 {
+			predictionQualityBuckets["30.0"]++
+		} else if qualityPct <= 40 {
+			predictionQualityBuckets["40.0"]++
+		} else if qualityPct <= 50 {
+			predictionQualityBuckets["50.0"]++
+		} else if qualityPct <= 60 {
+			predictionQualityBuckets["60.0"]++
+		} else if qualityPct <= 70 {
+			predictionQualityBuckets["70.0"]++
+		} else if qualityPct <= 80 {
+			predictionQualityBuckets["80.0"]++
+		} else if qualityPct <= 90 {
+			predictionQualityBuckets["90.0"]++
+		} else if qualityPct <= 100 {
+			predictionQualityBuckets["100.0"]++
+		}
+		predictionQualityBuckets["+Inf"]++
+	}
+	for bucket, value := range predictionQualityBuckets {
+		lines = append(lines, fmt.Sprintf("predictor_prediction_quality_distribution_bucket{le=\"%s\"} %f", bucket, float64(value)))
+	}
+	lines = append(lines, fmt.Sprintf("predictor_prediction_quality_distribution_count %d", len(predictionQualities)))
 
 	// Sort alphabetically.
 	sort.Strings(lines)

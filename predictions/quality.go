@@ -15,6 +15,15 @@ var (
 	predictionQualities = &sync.Map{}
 )
 
+func GetPredictionQualities() map[string]float64 {
+	qualities := map[string]float64{}
+	predictionQualities.Range(func(k, v interface{}) bool {
+		qualities[k.(string)] = v.(float64)
+		return true
+	})
+	return qualities
+}
+
 func calculatePredictionQuality(thingName string) error {
 	// Get the current state of the thing.
 	primarySignalObservation, ok := observations.GetCurrentPrimarySignal(thingName)
