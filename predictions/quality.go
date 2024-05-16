@@ -26,7 +26,7 @@ func calculatePredictionQuality(thingName string) error {
 
 	// If the time delay is too large (>10min), store -1 as quality.
 	if timeDelay > 10*time.Minute {
-		predictionQualities.Store(thingName, -1)
+		predictionQualities.Store(thingName, float64(-1))
 		return nil
 	}
 
@@ -81,9 +81,7 @@ func calculatePredictionQuality(thingName string) error {
 	}
 
 	quality := float64(correct) / float64(len(predictedStatesArr)) // Never 0 elements
-	// Map to int (0-100%)
-	qualityByte := int(quality * 100)
-	predictionQualities.Store(thingName, qualityByte)
+	predictionQualities.Store(thingName, quality)
 
 	return nil
 }

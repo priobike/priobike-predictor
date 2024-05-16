@@ -14,7 +14,7 @@ type Prediction struct {
 	// Certainty for the 'then' prediction part.
 	ThenQuality []byte `json:"thenQuality"` // Will be serialized to a base64 string.
 	// The quality that was checked against real data.
-	EvaluatedQuality int       `json:"evaluatedQuality"`
+	EvaluatedQuality float64   `json:"evaluatedQuality"`
 	ReferenceTime    time.Time `json:"referenceTime"`
 	ProgramId        *byte     `json:"programId"`
 }
