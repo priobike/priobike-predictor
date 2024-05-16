@@ -6,13 +6,17 @@ import (
 )
 
 type Prediction struct {
-	ThingName     string    `json:"thingName"`
-	Now           []byte    `json:"now"`         // Will be serialized to a base64 string.
-	NowQuality    []byte    `json:"nowQuality"`  // Will be serialized to a base64 string.
-	Then          []byte    `json:"then"`        // Will be serialized to a base64 string.
-	ThenQuality   []byte    `json:"thenQuality"` // Will be serialized to a base64 string.
-	ReferenceTime time.Time `json:"referenceTime"`
-	ProgramId     *byte     `json:"programId"`
+	ThingName string `json:"thingName"`
+	Now       []byte `json:"now"`  // Will be serialized to a base64 string.
+	Then      []byte `json:"then"` // Will be serialized to a base64 string.
+	// Certainty for the 'now' prediction part.
+	NowQuality []byte `json:"nowQuality"` // Will be serialized to a base64 string.
+	// Certainty for the 'then' prediction part.
+	ThenQuality []byte `json:"thenQuality"` // Will be serialized to a base64 string.
+	// The quality that was checked against real data.
+	EvaluatedQuality int       `json:"evaluatedQuality"`
+	ReferenceTime    time.Time `json:"referenceTime"`
+	ProgramId        *byte     `json:"programId"`
 }
 
 // Check if a prediction equals another prediction.
@@ -28,6 +32,9 @@ func (p Prediction) Equals(other Prediction) bool {
 		return false
 	}
 	if p.ReferenceTime != other.ReferenceTime {
+		return false
+	}
+	if p.EvaluatedQuality != other.EvaluatedQuality {
 		return false
 	}
 	if p.ProgramId == nil && other.ProgramId != nil {

@@ -32,6 +32,8 @@ func main() {
 	predictions.PublishAllBestPredictions()
 	// Publish all predictions periodically.
 	go predictions.PublishAllBestPredictionsPeriodically()
+	// Check the quality of predictions periodically.
+	go predictions.CheckPredictionQualityPeriodically()
 	// Update the prediction metrics once for the dashboard.
 	monitor.UpdateMetricsFiles()
 	monitor.WriteGeoJSONMap()

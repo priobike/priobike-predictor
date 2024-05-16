@@ -258,14 +258,18 @@ func predict(thingName string) (Prediction, error) {
 		return Prediction{}, fmt.Errorf("no prediction available")
 	}
 
+	predictionQualityValue, _ := predictionQualities.LoadOrStore(thingName, -1)
+	predictionQuality := predictionQualityValue.(int)
+
 	// Build the prediction.
 	return Prediction{
-		ThingName:     thingName,
-		Now:           predictionNow,
-		NowQuality:    qualitiesNow,
-		Then:          predictionThen,
-		ThenQuality:   qualitiesThen,
-		ReferenceTime: runningCycleStartTime,
-		ProgramId:     programId,
+		ThingName:        thingName,
+		Now:              predictionNow,
+		NowQuality:       qualitiesNow,
+		Then:             predictionThen,
+		ThenQuality:      qualitiesThen,
+		EvaluatedQuality: predictionQuality,
+		ReferenceTime:    runningCycleStartTime,
+		ProgramId:        programId,
 	}, nil
 }
