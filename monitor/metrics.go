@@ -234,7 +234,20 @@ func generatePrometheusMetrics(m Metrics) []string {
 	lines = append(lines, "# TYPE predictor_prediction_quality_distribution histogram")
 	predictionQualities := getAllPredictionQualities()
 	// Buckets: 1.0, 10.0, 20.0, ..., 100.0, +Inf
-	predictionQualityBuckets := make(map[string]int)
+	predictionQualityBuckets := map[string]int{
+		"1.0":   0,
+		"10.0":  0,
+		"20.0":  0,
+		"30.0":  0,
+		"40.0":  0,
+		"50.0":  0,
+		"60.0":  0,
+		"70.0":  0,
+		"80.0":  0,
+		"90.0":  0,
+		"100.0": 0,
+		"+Inf":  0,
+	}
 	for _, quality := range predictionQualities {
 		qualityPct := quality * 100
 		if qualityPct <= 1 {
