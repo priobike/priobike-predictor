@@ -98,10 +98,7 @@ func calculatePredictionQuality(thingName string) error {
 func CheckPredictionQualityPeriodically() {
 	for {
 		things.Things.Range(func(k, v interface{}) bool {
-			err := calculatePredictionQuality(k.(string))
-			if err != nil {
-				fmt.Printf("Error calculating prediction quality: %v\n", err)
-			}
+			calculatePredictionQuality(k.(string))
 			return true
 		})
 		time.Sleep(1 * time.Second)
