@@ -32,7 +32,7 @@ func prefetchMostRecentObservationsPage(page int) (more bool) {
 		panic(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if resp.StatusCode >= 300 {
 		log.Warning.Println("Could not sync observations: ", resp.Status)
 		return false
 	}
