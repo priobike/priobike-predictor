@@ -25,6 +25,7 @@ func prefetchMostRecentObservationsPage(page int) (more bool) {
 			"&$expand=Thing,Observations($orderby=phenomenonTime;$top=1)"+
 			"&$skip="+fmt.Sprintf("%d", page*elementsPerPage),
 	)
+	log.Info.Println("------- Fetching observations from ", pageUrl)
 	resp, err := http.Get(pageUrl)
 	if err != nil {
 		log.Warning.Println("Could not sync observations:", err)
@@ -52,6 +53,7 @@ func prefetchMostRecentObservationsPage(page int) (more bool) {
 		NextUri *string `json:"@iot.nextLink"`
 	}
 	if err := json.Unmarshal(body, &observationsResponse); err != nil {
+
 		log.Warning.Println("Could not sync observations:", err)
 		panic(err)
 	}
