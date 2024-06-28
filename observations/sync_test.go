@@ -38,7 +38,7 @@ func TestPrefetchMostRecentObservations(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	env.SensorThingsBaseUrl = fmt.Sprintf("%s/", testServer.URL)
+	env.SensorThingsBaseUrlObservations = fmt.Sprintf("%s/", testServer.URL)
 	PrefetchMostRecentObservations()
 
 	signalProgramCycles.Range(func(k, v interface{}) bool {

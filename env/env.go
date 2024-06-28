@@ -32,8 +32,11 @@ func loadOptional(name string, validate func(string) *error) string {
 // The path under which the history files are stored, from the environment variable.
 var StaticPath string
 
-// The SensorThings API base URL.
-var SensorThingsBaseUrl string
+// The SensorThings API base URL used for fetching things.
+var SensorThingsBaseUrlThings string
+
+// The SensorThings API base URL used for pre-fetching observations.
+var SensorThingsBaseUrlObservations string
 
 // The URL to the observation MQTT broker from the environment variable.
 var SensorThingsObservationMqttUrl string
@@ -85,7 +88,8 @@ var emptyValidator = func(value string) *error {
 
 func Init() {
 	StaticPath = loadRequired("STATIC_PATH", staticPathValidator)
-	SensorThingsBaseUrl = loadRequired("SENSORTHINGS_URL", sensorThingsBaseUrlValidator)
+	SensorThingsBaseUrlThings = loadRequired("SENSORTHINGS_URL_THINGS", sensorThingsBaseUrlValidator)
+	SensorThingsBaseUrlObservations = loadRequired("SENSORTHINGS_URL_OBSERVATIONS", sensorThingsBaseUrlValidator)
 	SensorThingsObservationMqttUrl = loadRequired("SENSORTHINGS_MQTT_URL", sensorThingsObservationMqttUrlValidator)
 	PredictionMqttUrl = loadRequired("PREDICTION_MQTT_URL", predictionMqttUrlValidator)
 	PredictionMqttUsername = loadOptional("PREDICTION_MQTT_USERNAME", emptyValidator)

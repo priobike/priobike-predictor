@@ -13,7 +13,7 @@ import (
 
 func prefetchMostRecentObservationsPage(page int) (more bool) {
 	elementsPerPage := 100
-	pageUrl := env.SensorThingsBaseUrl + "Datastreams?" + url.QueryEscape(
+	pageUrl := env.SensorThingsBaseUrlObservations + "Datastreams?" + url.QueryEscape(
 		"$filter="+
 			"properties/serviceName eq 'HH_STA_traffic_lights' "+
 			"and (properties/layerName eq 'signal_program') "+

@@ -47,7 +47,7 @@ var BikeDetectorDatastreams = &sync.Map{}
 
 func syncThingsPage(page int) (more bool) {
 	elementsPerPage := 100
-	pageUrl := env.SensorThingsBaseUrl + "Things?" + url.QueryEscape(
+	pageUrl := env.SensorThingsBaseUrlThings + "Things?" + url.QueryEscape(
 		"$filter="+
 			"Datastreams/properties/serviceName eq 'HH_STA_traffic_lights' "+
 			"and (Datastreams/properties/layerName eq 'primary_signal' "+
