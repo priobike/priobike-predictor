@@ -40,7 +40,8 @@ func TestLoadRequiredPanics(t *testing.T) {
 
 func TestRequiredEnvComplete(t *testing.T) {
 	t.Setenv("STATIC_PATH", "/usr/share/nginx/html")
-	t.Setenv("SENSORTHINGS_URL", "https://tld.iot.hamburg.de/v1.1/")
+	t.Setenv("SENSORTHINGS_URL_THINGS", "https://tld.iot.hamburg.de/v1.1/")
+	t.Setenv("SENSORTHINGS_URL_OBSERVATIONS", "https://tld.iot.hamburg.de/v1.1/")
 	t.Setenv("SENSORTHINGS_MQTT_URL", "tcp://tld.iot.hamburg.de:1883")
 	t.Setenv("PREDICTION_MQTT_URL", "tcp://predictor-mosquitto:1883")
 	Init()
@@ -62,7 +63,8 @@ func TestValidatorTriggers(t *testing.T) {
 		}
 	}()
 	t.Setenv("STATIC_PATH", "/usr/share/nginx/html/") // TYPO
-	t.Setenv("SENSORTHINGS_URL", "https://tld.iot.hamburg.de/v1.1/")
+	t.Setenv("SENSORTHINGS_URL_THINGS", "https://tld.iot.hamburg.de/v1.1/")
+	t.Setenv("SENSORTHINGS_URL_OBSERVATIONS", "https://tld.iot.hamburg.de/v1.1/")
 	t.Setenv("SENSORTHINGS_MQTT_URL", "tcp://tld.iot.hamburg.de:1883")
 	t.Setenv("PREDICTION_MQTT_URL", "tcp://predictor-mosquitto:1883")
 	Init()
